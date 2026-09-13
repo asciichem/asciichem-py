@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "asciichem-py"
+name = "asciichem"
 version = "0.1.0"
 description = "Python implementation of AsciiChem - parse ASCII chemistry into a semantic model; canonical text and wire JSON. Conformant with asciichem-model v1 and the asciichem-tests corpus."
 readme = "README.md"
