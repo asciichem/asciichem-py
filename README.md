@@ -1,4 +1,4 @@
-# asciichem-py
+# asciichem (Python)
 
 Python implementation of [AsciiChem](https://asciichem.org) — parse
 ASCII chemistry into a **semantic model** (atoms, bonds, isotopes,

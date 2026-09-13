@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (must match src/asciichem/__init__.py)"
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # PyPI trusted publishing (OIDC): register this publisher on
+    # pypi.org — project "asciichem", repository asciichem/asciichem-py,
+    # workflow release.yml, no environment.
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Verify version matches input
+        run: |
+          actual=$(python -c "import sys; sys.path.insert(0, 'src'); import asciichem; print(asciichem.__version__)")
+          if [ "$actual" != "${{ inputs.version }}" ]; then
+            echo "Version mismatch: input=${{ inputs.version }}, code=$actual"
+            exit 1
+          fi
+          echo "Releasing $actual"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install build twine
+      - run: python -m build
+      - uses: pypa/gh-action-pypi-publish@release/v1
