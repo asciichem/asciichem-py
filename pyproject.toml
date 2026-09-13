@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "jsonschema>=4"]
+dev = ["pytest>=8", "jsonschema>=4", "pyyaml>=6", "referencing>=0.35"]
 
 [project.urls]
 Homepage = "https://asciichem.org"
