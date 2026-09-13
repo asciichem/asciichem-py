@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone conformance corpus (asciichem-tests)
+        run: git clone --depth 1 https://github.com/asciichem/asciichem-tests.git ../asciichem-tests
+      - name: Clone model schemas (asciichem-model)
+        run: git clone --depth 1 https://github.com/asciichem/asciichem-model.git ../asciichem-model
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e ".[dev]"
+      - run: python -m pytest -q
