@@ -26,7 +26,11 @@ def fixtures():
     directory = CORPUS / "corpus" / "fixtures"
     for path in sorted(directory.glob("*.json")):
         cases.extend(json.loads(path.read_text()))
-    return [c for c in cases if isinstance(c.get("input"), str)]
+    return cases
+
+
+def input_fixtures():
+    return [c for c in fixtures() if isinstance(c.get("input"), str)]
 
 
 def _validator():
@@ -75,10 +79,10 @@ def validator():
 
 
 def test_corpus_loads():
-    assert len(fixtures()) > 200
+    assert len(input_fixtures()) > 200
 
 
-@pytest.mark.parametrize("case", fixtures(), ids=lambda c: c["id"])
+@pytest.mark.parametrize("case", input_fixtures(), ids=lambda c: c["id"])
 def test_parse_reject(case):
     if case["parses"]:
         parse_text(case["input"])  # must not raise
@@ -87,7 +91,7 @@ def test_parse_reject(case):
             parse_text(case["input"])
 
 
-@pytest.mark.parametrize("case", [c for c in fixtures() if c["parses"]],
+@pytest.mark.parametrize("case", [c for c in input_fixtures() if c["parses"]],
                          ids=lambda c: c["id"])
 def test_l0_schema_valid(case, validator):
     errors = sorted(validator.iter_errors(to_wire(parse_text(case["input"]))),
@@ -96,7 +100,52 @@ def test_l0_schema_valid(case, validator):
         f"{e.json_path} {e.message[:80]}" for e in errors[:3])
 
 
-@pytest.mark.parametrize("case", [c for c in fixtures() if c.get("roundTrip")],
+@pytest.mark.parametrize("case", [c for c in input_fixtures() if c.get("roundTrip")],
                          ids=lambda c: c["id"])
 def test_l1_round_trip(case):
     assert render(parse_text(case["input"])) == case["input"]
+
+
+# -- structure interchange (TODO.v2 09): opt-in levels ----------------------
+
+from asciichem.molfile import parse_molfile, write_molfile
+from asciichem.smiles import parse_smiles, write_smiles
+from asciichem.structure import build_graph
+
+
+def smiles_fixtures():
+    return [c for c in fixtures() if isinstance(c.get("smiles"), str)]
+
+
+@pytest.mark.parametrize("case", smiles_fixtures(), ids=lambda c: c["id"])
+def test_smiles_ingestion(case):
+    if case["parses"]:
+        parse_smiles(case["smiles"])  # must not raise
+        if case.get("smilesRoundTrip"):
+            assert write_smiles(parse_smiles(case["smiles"])) == case["smiles"]
+    else:
+        with pytest.raises(ParseError):
+            parse_smiles(case["smiles"])
+
+
+def molfile_fixtures():
+    return [c for c in fixtures() if isinstance(c.get("molfile"), str)]
+
+
+@pytest.mark.parametrize("case", molfile_fixtures(), ids=lambda c: c["id"])
+def test_molfile_ingestion(case):
+    if case["parses"]:
+        molecule = parse_molfile(case["molfile"])
+        atoms, edges = build_graph(molecule)
+        assert len(atoms) == case["atoms"], case["id"]
+        assert len(edges) == case["bonds"], case["id"]
+        if case.get("molfileRoundTrip"):
+            shape = sorted((e.from_, e.to, e.kind) for e in edges)
+            again_atoms, again_edges = build_graph(
+                parse_molfile(write_molfile(molecule)))
+            assert len(again_atoms) == len(atoms), case["id"]
+            assert sorted((e.from_, e.to, e.kind)
+                          for e in again_edges) == shape, case["id"]
+    else:
+        with pytest.raises(ParseError):
+            parse_molfile(case["molfile"])

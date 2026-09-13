@@ -21,7 +21,11 @@ from asciichem import parse_text
 from asciichem.text import render
 from asciichem.wire import to_model_json, from_model_json
 
+from asciichem.smiles import parse_smiles, write_smiles
+
 formula = parse_text("2H_2 + O_2 ->[heat] 2H_2O")
+aspirin = parse_smiles("CC(=O)OC1=CC=CC=C1C(=O)O")  # same model, same renderers
+write_smiles(aspirin)  # deterministic writer; round-trips exactly
 render(formula)          # canonical AsciiChem text (round-trip contract)
 to_model_json(formula)   # asciichem-model v1 wire JSON
 back = from_model_json(to_model_json(formula))
@@ -38,7 +42,9 @@ schemas (both cloned as siblings):
 | parse/reject | 100% — every corpus case parses or raises `ParseError` exactly as marked |
 | L0 | 100% — emission validates against the v1 JSON Schemas |
 | L1 | 100% — `render(parse(s)) == s` for every `roundTrip` case |
-| SMILES / molfile / MathML / resolver | not yet claimed (tracked follow-ups; the Ruby and TS implementations have them) |
+| SMILES | 100% — ingestion + deterministic emission, every `structure/smiles/*` fixture (asciichem-tests v0.3.0) |
+| molfile | 100% — V2000 ingestion + emission, every `structure/molfile/*` fixture |
+| MathML / resolver | not yet claimed (tracked follow-ups; the Ruby and TS implementations have them) |
 
 ## Development
 
