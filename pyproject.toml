@@ -13,6 +13,8 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "jsonschema>=4", "pyyaml>=6", "referencing>=0.35"]
+# InChI identity engine (TODO.v2 10): RDKit wraps the IUPAC library.
+inchi = ["rdkit>=2023"]
 
 [project.urls]
 Homepage = "https://asciichem.org"

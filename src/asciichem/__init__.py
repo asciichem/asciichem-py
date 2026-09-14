@@ -6,11 +6,12 @@ parse("H_2O").to_model_json()   asciichem-model v1 wire JSON
 from .model import AsciiChemError, ParseError
 from .parser import parse_text
 from .text import render
+from .mathml import render_mathml
 from .wire import from_model_json, to_model_json, to_wire
 
 __version__ = "0.1.0"
 __all__ = ["parse_text", "from_model_json", "to_model_json", "to_wire",
-           "AsciiChemError", "ParseError", "__version__"]
+           "render_mathml", "AsciiChemError", "ParseError", "__version__"]
 
 
 def _render(node):
