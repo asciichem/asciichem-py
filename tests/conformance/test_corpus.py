@@ -149,3 +149,15 @@ def test_molfile_ingestion(case):
     else:
         with pytest.raises(ParseError):
             parse_molfile(case["molfile"])
+
+
+# L2: MathML golden parity - exact-string comparison against the
+# reference implementation's output (single-contract rule).
+def mathml_fixtures():
+    return [c for c in fixtures() if isinstance(c.get("mathml"), str)]
+
+
+@pytest.mark.parametrize("case", mathml_fixtures(), ids=lambda c: c["id"])
+def test_l2_mathml_golden(case):
+    from asciichem.mathml import render_mathml
+    assert render_mathml(parse_text(case["input"])) == case["mathml"], case["id"]

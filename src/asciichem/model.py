@@ -13,7 +13,11 @@ Node = Union["Atom", "Bond", "Group", "Molecule", "Reaction", "ReactionCascade",
 BOND_ASCII = {"single": "-", "double": "=", "triple": "#", "quadruple": "##",
               "wedge": ">-", "hash": "-<", "dative": "~>", "wavy": "~~",
               "aromatic": ":"}
+BOND_ENTITY = {"single": "-", "double": "=", "triple": "≡", "quadruple": "≣",
+               "wedge": "↑", "hash": "↓", "dative": "→", "wavy": "∼",
+               "aromatic": ":"}
 ARROW_ASCII = {"forward": "->", "reverse": "<-", "equilibrium": "<=>", "resonance": "<->"}
+ARROW_ENTITY = {"forward": "→", "reverse": "←", "equilibrium": "⇌", "resonance": "↔"}
 BRACKETS = {"paren": "()", "square": "[]", "brace": "{}"}
 STEREO_LETTER = {"R": "R", "S": "S", "E": "E", "Z": "Z", "alpha": "alpha", "beta": "beta"}
 
@@ -57,6 +61,10 @@ class Bond:
     @property
     def ascii(self) -> str:
         return BOND_ASCII[self.kind]
+
+    @property
+    def entity(self) -> str:
+        return BOND_ENTITY[self.kind]
 
 
 @dataclass
@@ -115,6 +123,10 @@ class Reaction:
     @property
     def arrow_ascii(self) -> str:
         return ARROW_ASCII[self.arrow]
+
+    @property
+    def arrow_entity(self) -> str:
+        return ARROW_ENTITY[self.arrow]
 
 
 @dataclass

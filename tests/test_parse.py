@@ -61,5 +61,6 @@ def test_wire_drops_fuzz_junk():
 
 def test_wire_ingestion_round_trip():
     from asciichem.wire import from_model_json, to_model_json
-    for source in ["H_2O", "C1-C-C-C-C-C1", "2H_2 + O_2 -> 2H_2O", '"plain text"']:
+    for source in ["H_2O", "C1-C-C-C-C-C1", "2H_2 + O_2 -> 2H_2O", '"plain text"',
+                   "(R)-C_2H_5OH", "(alpha)-C_6H_12O_6"]:
         assert render(from_model_json(to_model_json(parse_text(source)))) == source

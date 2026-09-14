@@ -31,6 +31,8 @@ def to_wire(node) -> dict:
         wire = {"type": "molecule", "nodes": [to_wire(n) for n in node.nodes]}
         if (coefficient := _digits_or_none(node.coefficient)) is not None:
             wire["coefficient"] = coefficient
+        if node.stereo is not None:
+            wire["stereo"] = node.stereo
         if node.identifiers:
             wire["identifiers"] = [
                 {"type": "identifier", "value": i.value, "convention": i.convention}
@@ -223,7 +225,8 @@ def _from_node(wire) -> object:
                      bracket=wire.get("bracket", "paren"))
     if kind == "molecule":
         molecule = Molecule([_from_node(n) for n in wire.get("nodes", [])],
-                            coefficient=wire.get("coefficient"))
+                            coefficient=wire.get("coefficient"),
+                            stereo=wire.get("stereo"))
         from .model import Identifier
         for i in wire.get("identifiers", []):
             molecule.identifiers.append(Identifier(i["value"], i["convention"]))
