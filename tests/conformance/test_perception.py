@@ -20,14 +20,19 @@ from asciichem.structure import build_graph
 CORPUS = Path(os.environ.get("ASCIICHEM_CORPUS",
                              Path.cwd().parent / "asciichem-tests"))
 
-pytestmark = pytest.mark.skipif(
-    not (CORPUS / "corpus" / "fixtures" / "perception.json").is_file(),
-    reason="corpus not cloned as sibling (or set ASCIICHEM_CORPUS)")
+PERCEPTION_FILE = CORPUS / "corpus" / "fixtures" / "perception.json"
 
 
 def perception_cases():
-    path = CORPUS / "corpus" / "fixtures" / "perception.json"
-    return json.loads(path.read_text())
+    if not PERCEPTION_FILE.is_file():
+        return []
+    return json.loads(PERCEPTION_FILE.read_text())
+
+
+@pytest.mark.skipif(not PERCEPTION_FILE.is_file(),
+                    reason="corpus not cloned as sibling (or set ASCIICHEM_CORPUS)")
+def test_has_perception_cases():
+    assert len(perception_cases()) >= 14
 
 
 def perceived(smiles: str):
