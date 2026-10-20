@@ -34,7 +34,10 @@ def test_rejects_v1_subset(bad):
 
 
 @pytest.mark.parametrize("smiles", [
-    "CC(=O)OC1=CC=CC=C1C(=O)O", "c1ccc2ccccc2c1", "CC(C)(C)C"])
+    "CC(=O)OC1=CC=CC=C1C(=O)O", "c1ccc2ccccc2c1", "CC(C)(C)C",
+    # Ring-closure digits stay out of branches (#103): a
+    # closure-bearing child continues the chain.
+    "C1=CCC(C)C(C)C1", "C1CC2CCC1C2", "C1CC(C)CCC1"])
 def test_writer_is_stable_and_structure_preserving(smiles):
     once = write_smiles(parse_smiles(smiles))
     assert write_smiles(parse_smiles(once)) == once

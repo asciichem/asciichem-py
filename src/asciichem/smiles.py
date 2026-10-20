@@ -401,8 +401,14 @@ class _DeterministicWriter:
         return out
 
     def _continuation_rank(self, index: int, child: int):
+        # A closure-bearing child continues the chain (ring-closure
+        # digits belong at the end of a traversal, and the written
+        # atom order then matches the model's), then single/aromatic
+        # bonds, then larger subtrees, then the order-independent
+        # atom token (#103).
         kind = self.adjacency[index][child]
-        return (0 if kind in CONTINUATION_BONDS else 1,
+        return (0 if self.closures[child] else 1,
+                0 if kind in CONTINUATION_BONDS else 1,
                 -self.tree_size[child], self._atom_token(child))
 
     def _ring_digit_for(self, a: int, b: int) -> str:
