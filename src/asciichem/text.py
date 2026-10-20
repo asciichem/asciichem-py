@@ -94,6 +94,8 @@ def _atom_annotation(a: Atom) -> str:
         parts.append(coord + ")")
     if a.atom_parity is not None:
         parts.append("@" + a.atom_parity)
+    if a.chirality is not None:
+        parts.append("@" + a.chirality)
     if a.spin_multiplicity is not None:
         parts.append(f"@m({a.spin_multiplicity})")
     if a.atom_title is not None:
@@ -112,6 +114,12 @@ def _group(g: Group) -> str:
 
 @_formats(Bond)
 def _bond(b: Bond) -> str:
+    # Directional single bonds spell the direction instead of the
+    # plain dash (text re-parses to the same model).
+    if b.direction == "up":
+        return "/"
+    if b.direction == "down":
+        return "\\"
     return b.ascii
 
 

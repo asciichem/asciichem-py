@@ -46,9 +46,11 @@ class SmilesParser:
     def component(self) -> Molecule:
         self.atoms = []
         self.adjacency = []
+        self.edge_directions = {}
         self.open_rings = {}
         self.parent = None
         self.pending_kind = None
+        self.pending_direction = None
 
         self.chain()
 
@@ -57,7 +59,7 @@ class SmilesParser:
             raise ParseError(
                 f"unclosed ring bond digit(s): {digits} in {self.s!r}")
 
-        edges = [Edge(a, b, kind)
+        edges = [Edge(a, b, kind, self.edge_directions.get((min(a, b), max(a, b))))
                  for a, neighbors in enumerate(self.adjacency)
                  for b, kind in neighbors.items() if b > a]
         return Molecule(nodes=linearize(self.atoms, edges))
@@ -69,31 +71,40 @@ class SmilesParser:
             if ch == "(":
                 self.branch(None)
             elif self._bond_start():
-                kind = self.bond_token()
+                kind, direction = self.bond_token()
                 if self._peek() == "(":
-                    self.branch(kind)
+                    self.branch(kind, direction)
                 elif self._digit_start():
-                    self.ringbond(kind)
+                    self.ringbond(kind, direction)
                 else:
                     self.pending_kind = kind
+                    self.pending_direction = direction
                     self.atom_token()
             elif self._digit_start():
                 self.ringbond(None)
             else:
                 self.pending_kind = None
+                self.pending_direction = None
                 self.atom_token()
 
-    def branch(self, kind: str | None):
+    def branch(self, kind: str | None, direction: str | None = None):
         self._expect("(")
         if kind is None and self._bond_start():
-            kind = self.bond_token()
+            kind, direction = self.bond_token()
         saved_parent, saved_pending = self.parent, self.pending_kind
+        saved_direction = self.pending_direction
         self.pending_kind = kind
+        self.pending_direction = direction
         self.chain()
         self._expect(")")
         self.parent, self.pending_kind = saved_parent, saved_pending
+        self.pending_direction = saved_direction
 
-    def ringbond(self, kind: str | None):
+    def ringbond(self, kind: str | None, direction: str | None = None):
+        if direction:
+            raise ParseError(
+                "directional ring closures are not representable "
+                "in the model's ring-closure form")
         digit = self.ring_digit()
         opener = self.open_rings.pop(digit, None)
         if opener is not None:
@@ -112,10 +123,13 @@ class SmilesParser:
         self.adjacency.append({})
         if self.parent is not None:
             self._add_edge(self.parent, index, self.pending_kind)
+            if self.pending_direction:
+                self.edge_directions[tuple(sorted((self.parent, index)))] = self.pending_direction
         self.parent = index
         self.pending_kind = None
+        self.pending_direction = None
 
-    def _add_edge(self, a: int, b: int, explicit: str | None):
+    def _add_edge(self, a: int, b: int, explicit: str | None, direction: str | None = None):
         kind = explicit or self._default_kind(a, b)
         self.adjacency[a][b] = kind
         self.adjacency[b][a] = kind
@@ -151,13 +165,13 @@ class SmilesParser:
         self._expect("[")
         isotope = self._digits()
         symbol = self.bracket_symbol()
-        self.reject_chirality()
+        chirality = self.read_chirality()
         hydrogens = self.hcount()
         charge = self.bracket_charge()
         self.skip_class()
         self._expect("]")
         return Atom(element=_capitalize(symbol), isotope=isotope,
-                    charge=charge,
+                    charge=charge, chirality=chirality,
                     aromatic=True if re.match(r"[a-z]", symbol) else None,
                     hydrogens=hydrogens)
 
@@ -179,11 +193,16 @@ class SmilesParser:
         raise ParseError(
             f"expected an element symbol at position {self.pos} in {self.s!r}")
 
-    def reject_chirality(self):
+    # `@' (TH1) / `@@' (TH2): SMILES ordered-neighbour tetrahedral
+    # parity, stored verbatim on the atom.
+    def read_chirality(self):
         if self._peek() != "@":
-            return
-        token = "@@" if self.s[self.pos:self.pos + 2] == "@@" else "@"
-        raise ParseError(f"chirality '{token}' is not supported in the v1 subset")
+            return None
+        if self.s[self.pos:self.pos + 2] == "@@":
+            self.pos += 2
+            return "TH2"
+        self.pos += 1
+        return "TH1"
 
     def hcount(self):
         if self._peek() != "H":
@@ -213,18 +232,19 @@ class SmilesParser:
         self.pos += 1
         self._digits()
 
-    def bond_token(self) -> str:
+    # Returns (kind, direction): `/' and `\\' are DIRECTIONAL SINGLE
+    # bonds (SMILES E/Z stereo).
+    def bond_token(self):
         ch = self._peek()
+        if ch in "/\\":
+            self.pos += 1
+            return ("single", "up" if ch == "/" else "down")
         kind = BOND_KINDS.get(ch)
         if not kind:
-            if ch in "/\\":
-                raise ParseError(
-                    f"bond direction {ch!r} (E/Z stereo) is not supported "
-                    "in the v1 subset")
             raise ParseError(
                 f"expected a bond or atom at position {self.pos} in {self.s!r}")
         self.pos += 1
-        return kind
+        return (kind, None)
 
     def ring_digit(self) -> str:
         if self._peek() == "%":

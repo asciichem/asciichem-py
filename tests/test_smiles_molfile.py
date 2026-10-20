@@ -24,7 +24,10 @@ def test_bracket_atoms():
     assert write_smiles(parse_smiles("[Fe++]")) == "[Fe+2]"
 
 
-@pytest.mark.parametrize("bad", ["C1CCC", "[C@H](C)C", "C/C=C/C", "C=1CCCCC=1", "CC!X", "[C"])
+# Stereo moved from the v1 rejections to supported features
+# (corpus 0.5.0): @/@@ parse into Atom.chirality (TH1/TH2) and
+# / \ into Bond.direction.
+@pytest.mark.parametrize("bad", ["C1CCC", "C=1CCCCC=1", "CC!X", "[C"])
 def test_rejects_v1_subset(bad):
     with pytest.raises(ParseError):
         parse_smiles(bad)

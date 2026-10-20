@@ -13,12 +13,14 @@ MAX_DIGIT = 9
 
 
 class Edge:
-    __slots__ = ("from_", "to", "kind")
+    __slots__ = ("from_", "to", "kind", "direction")
 
-    def __init__(self, from_: int, to: int, kind: str):
+    def __init__(self, from_: int, to: int, kind: str,
+                 direction: str | None = None):
         self.from_ = from_
         self.to = to
         self.kind = kind
+        self.direction = direction
 
 
 def build_graph(molecule: Molecule):
@@ -77,7 +79,7 @@ def linearize(atoms: list[Atom], edges: list[Edge]) -> list[Node]:
     for edge in edges:
         first, last = min(edge.from_, edge.to), max(edge.from_, edge.to)
         if last - first == 1:
-            token_before[last] = edge.kind
+            token_before[last] = edge
         else:
             digit_index = next((d for d in range(MAX_DIGIT)
                                 if close_at[d] <= first), None)
@@ -92,9 +94,9 @@ def linearize(atoms: list[Atom], edges: list[Edge]) -> list[Node]:
 
     nodes: list[Node] = []
     for index, atom in enumerate(atoms):
-        kind = token_before.get(index)
-        if index > 0 and kind:
-            nodes.append(Bond(kind))
+        edge = token_before.get(index)
+        if index > 0 and edge:
+            nodes.append(Bond(edge.kind, direction=edge.direction))
         atom.ring_closures = digits_for[index] or None
         nodes.append(atom)
     return nodes

@@ -56,13 +56,17 @@ def to_wire(node) -> dict:
             wire["ringClosures"] = ring
         if node.aromatic is not None:
             wire["aromatic"] = node.aromatic
+        if node.chirality is not None:
+            wire["chirality"] = node.chirality
         if node.hydrogens is not None:
             wire["hydrogens"] = node.hydrogens
         return wire
     if isinstance(node, Bond):
-        wire = {"type": "bond"}
-        if node.kind != "single":
-            wire["kind"] = node.kind
+        # kind is always emitted: the reference implementation does,
+        # and the differential gate compares wire forms byte-wise.
+        wire = {"type": "bond", "kind": node.kind}
+        if node.direction is not None:
+            wire["direction"] = node.direction
         return wire
     if isinstance(node, Group):
         wire = {"type": "group", "nodes": [to_wire(n) for n in node.nodes]}
@@ -216,9 +220,10 @@ def _from_node(wire) -> object:
                     lone_pairs=wire.get("lonePairs"),
                     radical_electrons=wire.get("radicalElectrons"),
                     ring_closures=wire.get("ringClosures"),
-                    aromatic=wire.get("aromatic"), hydrogens=wire.get("hydrogens"))
+                    aromatic=wire.get("aromatic"), hydrogens=wire.get("hydrogens"),
+                    chirality=wire.get("chirality"))
     if kind == "bond":
-        return Bond(wire.get("kind", "single"))
+        return Bond(wire.get("kind", "single"), direction=wire.get("direction"))
     if kind == "group":
         return Group([_from_node(n) for n in wire.get("nodes", [])],
                      multiplicity=wire.get("multiplicity"),
