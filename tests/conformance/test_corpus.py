@@ -123,6 +123,11 @@ def test_smiles_ingestion(case):
         parse_smiles(case["smiles"])  # must not raise
         if case.get("smilesRoundTrip"):
             assert write_smiles(parse_smiles(case["smiles"])) == case["smiles"]
+        if isinstance(case.get("canonicalSmiles"), str):
+            # Canonical aromatic form for inputs whose spelling is not
+            # the fixed point (Kekule rings).
+            assert (write_smiles(parse_smiles(case["smiles"]))
+                    == case["canonicalSmiles"])
     else:
         with pytest.raises(ParseError):
             parse_smiles(case["smiles"])
