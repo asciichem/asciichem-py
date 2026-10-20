@@ -24,6 +24,8 @@ pytestmark = pytest.mark.skipif(
 
 
 def cases():
+    if not GENERATED.is_file():
+        return []
     data = json.loads(GENERATED.read_text())
     return data["cases"]
 
