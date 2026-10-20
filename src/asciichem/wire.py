@@ -173,8 +173,12 @@ def to_wire(node) -> dict:
                 if len(inner.nodes) != 1 or not isinstance(inner.nodes[0], Reaction):
                     raise ParseError(
                         f"mechanism step body is not a reaction: {s.reaction!r}")
-                steps.append({"label": s.label,
-                              "reaction": to_wire(inner.nodes[0])})
+                step = {"label": s.label,
+                        "reaction": to_wire(inner.nodes[0])}
+                if s.flows:
+                    step["flows"] = [{"source": f.source, "target": f.target}
+                                     for f in s.flows]
+                steps.append(step)
             wire["steps"] = steps
         if node.spectators:
             spectators = []

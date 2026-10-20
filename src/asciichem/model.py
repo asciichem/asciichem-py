@@ -252,9 +252,16 @@ class ZMatrix:
 
 
 @dataclass
+class MechanismFlow:
+    source: str
+    target: str
+
+
+@dataclass
 class MechanismStep:
     label: str
     reaction: str
+    flows: list = field(default_factory=list)
 
 
 @dataclass
