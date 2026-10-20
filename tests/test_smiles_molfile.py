@@ -57,14 +57,19 @@ def test_writer_is_stable_and_structure_preserving(smiles):
     ("ClC1=CC=CC=C1", "Clc1ccccc1"),
     ("C1=CC=NC=C1", "c1ccncc1"),
     ("C1=CC=C2C=CC=CC2=C1", "c1ccc2ccccc2c1"),
+    # Hückel five-membered rings (corpus 0.8.0).
+    ("C1=COC=C1", "c1cocc1"),
+    ("C1=CNC=C1", "c1c[nH]cc1"),
+    ("C1=CSC=C1", "c1cscc1"),
 ])
 def test_canonicalizes_perceived_aromatic_rings(kekule, canonical):
     assert write_smiles(parse_smiles(kekule)) == canonical
     assert write_smiles(parse_smiles(canonical)) == canonical
 
 
-@pytest.mark.parametrize("smiles", ["O=C1C=CC=CC1", "O=C1C=CC(=O)C=C1"])
-def test_keeps_quinones_kekule(smiles):
+@pytest.mark.parametrize("smiles", ["O=C1C=CC=CC1", "O=C1C=CC(=O)C=C1",
+                                   "C1=CCC=C1", "C1=CC1"])
+def test_keeps_non_aromatic_rings_kekule(smiles):
     assert write_smiles(parse_smiles(smiles)) == smiles
 
 

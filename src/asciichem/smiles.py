@@ -11,7 +11,7 @@ import re
 
 from .model import Atom, Bond, Formula, Molecule, ParseError
 from .structure import Edge, build_graph, linearize
-from .perception import aromatic_rings
+from .perception import aromatic_rings, hydrogen_valence_sum, implicit_hydrogens
 
 ORGANIC = ("Cl", "Br", "B", "C", "N", "O", "P", "S", "F", "I")
 AROMATIC_TWO = ("se", "as")
@@ -21,6 +21,7 @@ BOND_KINDS = {"-": "single", "=": "double", "#": "triple", "$": "quadruple",
 LOWERABLE_AROMATIC = {"C", "N", "O", "S", "P", "B", "Se", "As"}
 WRITER_ORGANIC = {"B", "C", "N", "O", "P", "S", "F", "Cl", "Br", "I"}
 CONTINUATION_BONDS = {"single", "aromatic"}
+HETERO_IMPLICIT_H = ("N", "O", "S", "P", "Se", "As")
 
 
 class SmilesParser:
@@ -334,22 +335,33 @@ def _write_molecule(molecule: Molecule) -> str:
     # canonicalizes to `c1ccccc1`.
     perceived_aromatic: set[int] = set()
     perceived_ring_edges: set[tuple[int, int]] = set()
+    perceived_hydrogens: dict[int, int | None] = {}
     for ring in aromatic_rings(atoms, edges):
         perceived_aromatic.update(ring)
+        for atom in ring:
+            # Only rings perceived from Kekule bond orders get an
+            # inferred count; source-aromatic atoms already state
+            # hydrogens the way SMILES does ([nH]), and aromatic 1.5
+            # bond orders do not map onto heteroatom valences.
+            if atoms[atom].aromatic is not True:
+                perceived_hydrogens[atom] = implicit_hydrogens(
+                    atoms[atom], hydrogen_valence_sum(atom, edges))
         for i, atom in enumerate(ring):
             other = ring[(i + 1) % len(ring)]
             perceived_ring_edges.add((min(atom, other), max(atom, other)))
     return _DeterministicWriter(
-        atoms, adjacency, perceived_aromatic, perceived_ring_edges).write()
+        atoms, adjacency, perceived_aromatic, perceived_ring_edges,
+        perceived_hydrogens).write()
 
 
 class _DeterministicWriter:
     def __init__(self, atoms, adjacency, perceived_aromatic=None,
-                 perceived_ring_edges=None):
+                 perceived_ring_edges=None, perceived_hydrogens=None):
         self.atoms = atoms
         self.adjacency = adjacency
         self.perceived_aromatic = perceived_aromatic or set()
         self.perceived_ring_edges = perceived_ring_edges or set()
+        self.perceived_hydrogens = perceived_hydrogens or {}
         self.visited: set[int] = set()
         self.digits: list[list[str]] = [[] for _ in atoms]
         self.digit_by_edge: dict[tuple[int, int], str] = {}
@@ -463,8 +475,14 @@ class _DeterministicWriter:
         atom = self.atoms[index]
         aromatic = self._aromatic(index)
         lowercase = aromatic and atom.element in LOWERABLE_AROMATIC
+        hyd = (atom.hydrogens if atom.hydrogens is not None
+               else self.perceived_hydrogens.get(index))
+        # Bare `n`/`o`/`s` imply no hydrogen: a perceived pyrrole N
+        # must be written [nH].
+        hetero_needs_h = (aromatic and lowercase and hyd is not None
+                          and hyd > 0 and atom.element in HETERO_IMPLICIT_H)
         needs_bracket = (atom.charge is not None or atom.isotope is not None
-                         or atom.hydrogens is not None
+                         or atom.hydrogens is not None or hetero_needs_h
                          or (atom.element not in WRITER_ORGANIC and not lowercase)
                          or (aromatic and not lowercase))
         if not needs_bracket:
@@ -474,8 +492,8 @@ class _DeterministicWriter:
         if atom.isotope is not None:
             token += atom.isotope
         token += symbol
-        if atom.hydrogens is not None:
-            token += "H" + (str(atom.hydrogens) if atom.hydrogens > 1 else "")
+        if atom.hydrogens is not None or hetero_needs_h:
+            token += "H" + (str(hyd) if hyd != 1 else "")
         if atom.charge is not None:
             token += _charge_suffix(atom.charge)
         return token + "]"

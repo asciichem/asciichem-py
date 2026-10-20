@@ -86,15 +86,53 @@ def implicit_hydrogens(atom: Atom, valence_sum: float) -> int | None:
     return int(min(deficits))
 
 
-def _is_sp2(atom_index: int, atoms: list[Atom], edges: list[Edge],
-            cyclic_atoms: set[int]) -> bool:
-    """sp2 means a double bond to an atom that is itself in a ring,
-    or an aromatic flag. The partner-in-a-ring requirement keeps
-    quinones out (their double bonds point at exocyclic oxygens);
-    fused systems still qualify (naphthalene's fusion carbons
-    double-bond into the neighbouring ring)."""
-    if atoms[atom_index].aromatic is True:
+# pi-electron-donating heteroatoms: a ring atom with no double bond of
+# its own contributes its lone pair (pyrrole N, furan O, thiophene S) -
+# the 2 electrons that make those five-membered rings 4n+2.
+LONE_PAIR_DONORS = ("N", "O", "S", "P", "Se", "As")
+
+
+def aromatic_rings(atoms: list[Atom], edges: list[Edge]) -> list[list[int]]:
+    """Aromatic rings by Hueckel counting: 5- and 6-membered cycles
+    whose pi contributions total 6 or 10 (4n+2 with n >= 1; n = 0 is a
+    charged three-membered ring, which perception declines). Per atom:
+    an in-system double bond contributes 1; a lone-pair donor with no
+    double contributes 2; a carbon with only single bonds or an
+    exocyclic double contributes 0. Charged atoms make the count
+    undecidable and the ring is declined; aromatic-flagged rings are
+    taken as stated.
+
+    Sees fused systems (naphthalene's shared bond is single, but each
+    atom's double bond lies in the ring system) and keeps quinones out
+    (their carbons' only doubles point at exocyclic oxygens)."""
+    cycles = _ring_cycles(edges, len(atoms))
+    cyclic_atoms = {atom for cycle in cycles for atom in cycle}
+    return [c for c in cycles if _aromatic_cycle(c, atoms, edges, cyclic_atoms)]
+
+
+def _aromatic_cycle(cycle, atoms, edges, cyclic_atoms) -> bool:
+    if any(atoms[i].aromatic is True for i in cycle):
         return True
+    if len(cycle) not in (5, 6):
+        return False
+    electrons = [_ring_pi_electrons(atoms[i], i, edges, cyclic_atoms)
+                 for i in cycle]
+    if any(e is None for e in electrons):
+        return False
+    return sum(electrons) in (6, 10)
+
+
+def _ring_pi_electrons(atom, atom_index, edges, cyclic_atoms):
+    if atom.charge is not None:
+        return None
+    if _in_system_double(atom_index, edges, cyclic_atoms):
+        return 1
+    if atom.element in LONE_PAIR_DONORS:
+        return 2
+    return 0
+
+
+def _in_system_double(atom_index, edges, cyclic_atoms) -> bool:
     for edge in edges:
         if edge.from_ != atom_index and edge.to != atom_index:
             continue
@@ -104,17 +142,6 @@ def _is_sp2(atom_index: int, atoms: list[Atom], edges: list[Edge],
         if partner in cyclic_atoms:
             return True
     return False
-
-
-def aromatic_rings(atoms: list[Atom], edges: list[Edge]) -> list[list[int]]:
-    """Six-membered cycles where every atom is sp2 - the fused-system
-    rule (per-ring alternation can never see both naphthalene rings).
-    Full Hueckel pi-electron counting is a later slice."""
-    cycles = _ring_cycles(edges, len(atoms))
-    cyclic_atoms = {atom for cycle in cycles for atom in cycle}
-    six = [c for c in cycles if len(c) == 6]
-    return [c for c in six
-            if all(_is_sp2(i, atoms, edges, cyclic_atoms) for i in c)]
 
 
 def bond_kind(a: int, b: int, edges: list[Edge]) -> str | None:
