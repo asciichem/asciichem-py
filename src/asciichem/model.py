@@ -111,10 +111,49 @@ class Molecule:
     metadata: list = field(default_factory=list)
 
 
+CONDITION_ROLE_PREFIXES = {
+    "cat": "catalyst", "catalyst": "catalyst",
+    "solv": "solvent", "solvent": "solvent",
+    "reag": "reagent", "reagent": "reagent",
+}
+
+
+@dataclass
+class ConditionEntry:
+    role: Optional[str]
+    value: str
+    side: str
+
+
+def _entries_for(side: str, text: Optional[str]) -> list[ConditionEntry]:
+    if text is None or not text.strip():
+        return []
+    out: list[ConditionEntry] = []
+    for chunk in text.split(";"):
+        trimmed = chunk.strip()
+        if not trimmed:
+            continue
+        prefix, colon, rest = trimmed.partition(":")
+        role = CONDITION_ROLE_PREFIXES.get(prefix.strip().lower()) if colon else None
+        out.append(ConditionEntry(role=role,
+                                  value=rest.strip() if role else trimmed,
+                                  side=side))
+    return out
+
+
 @dataclass
 class ReactionConditions:
     above: Optional[str] = None
     below: Optional[str] = None
+
+    @property
+    def entries(self) -> list[ConditionEntry]:
+        """Typed `role: value` entries derived from the bracket text
+        (which stays verbatim - the round-trip source). Semicolons
+        separate entries; unknown role prefixes are free text (role
+        None), never an error."""
+        return (_entries_for("above", self.above)
+                + _entries_for("below", self.below))
 
 
 @dataclass
