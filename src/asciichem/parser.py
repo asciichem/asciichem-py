@@ -11,7 +11,8 @@ from typing import Optional
 
 from .model import (Atom, Bond, Calculation, CalculationProperty, Crystal,
                     ElectronConfiguration, EmbeddedMath, Formula, Group,
-                    Identifier, Mechanism, MechanismStep, Molecule, Name,
+                    Identifier, Mechanism, MechanismFlow, MechanismStep,
+                    Molecule, Name,
                     ParseError, Reaction, ReactionCascade, ReactionConditions,
                     Spectrum, SpectrumPeak, Text, ZMatrix, ZRow)
 
@@ -559,7 +560,9 @@ class Parser:
                 if key.strip() == "spectator":
                     spectators.extend(value.split())
                 else:
-                    steps.append(MechanismStep(key.strip(), value.strip()))
+                    reaction, flows = split_mechanism_step(key.strip(),
+                                                           value.strip())
+                    steps.append(MechanismStep(key.strip(), reaction, flows))
         return Mechanism(steps, spectators)
 
     def electron_config(self):
@@ -762,6 +765,33 @@ def parse_params(raw):
         if key:
             params[key.strip()] = value.strip()
     return params
+
+
+def split_mechanism_step(label: str, value: str):
+    """A step value is its reaction, optionally followed by
+    `| flow: SOURCE > TARGET` clauses (semicolon-separated). Unknown
+    clause kinds are rejected, never dropped."""
+    parts = [part.strip() for part in value.split("|")]
+    reaction, clauses = parts[0], parts[1:]
+    flows = []
+    for clause in clauses:
+        kind, colon, payload = clause.partition(":")
+        if not colon or kind.strip() != "flow":
+            raise ParseError(
+                f"mechanism step {label!r} has an unknown clause: {clause!r} "
+                '(supported: "flow: SOURCE > TARGET")')
+        for arrow in payload.split(";"):
+            arrow = arrow.strip()
+            if not arrow:
+                continue
+            source, gt, target = arrow.partition(">")
+            source, target = source.strip(), target.strip()
+            if not gt or not source or not target:
+                raise ParseError(
+                    f"mechanism step {label!r} has a malformed flow: {arrow!r} "
+                    '(expected "SOURCE > TARGET")')
+            flows.append(MechanismFlow(source, target))
+    return reaction, flows
 
 
 def validate_colon_lines(body, what):

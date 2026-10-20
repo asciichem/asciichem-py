@@ -243,11 +243,18 @@ def _zmatrix(z: ZMatrix) -> str:
     return "".join(parts)
 
 
+def _mechanism_step_text(step) -> str:
+    if not step.flows:
+        return step.reaction
+    arrows = "; ".join(f"{f.source} > {f.target}" for f in step.flows)
+    return f"{step.reaction} | flow: {arrows}"
+
+
 @_formats(Mechanism)
 def _mechanism(m: Mechanism) -> str:
     parts = ["mechanism"]
     if m.steps or m.spectators:
-        lines = [f"{s.label}: {s.reaction}" for s in m.steps]
+        lines = [f"{s.label}: {_mechanism_step_text(s)}" for s in m.steps]
         lines += [f"spectator: {sp}" for sp in m.spectators]
         parts.append("{\n  " + "\n  ".join(lines) + "\n}")
     return "".join(parts)
