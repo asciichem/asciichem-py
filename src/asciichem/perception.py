@@ -86,23 +86,35 @@ def implicit_hydrogens(atom: Atom, valence_sum: float) -> int | None:
     return int(min(deficits))
 
 
-def _is_sp2(atom_index: int, atoms: list[Atom], edges: list[Edge]) -> bool:
+def _is_sp2(atom_index: int, atoms: list[Atom], edges: list[Edge],
+            cyclic_atoms: set[int]) -> bool:
+    """sp2 means a double bond to an atom that is itself in a ring,
+    or an aromatic flag. The partner-in-a-ring requirement keeps
+    quinones out (their double bonds point at exocyclic oxygens);
+    fused systems still qualify (naphthalene's fusion carbons
+    double-bond into the neighbouring ring)."""
     if atoms[atom_index].aromatic is True:
         return True
-    return any(
-        (edge.from_ == atom_index or edge.to == atom_index)
-        and edge.kind == "double"
-        for edge in edges
-    )
+    for edge in edges:
+        if edge.from_ != atom_index and edge.to != atom_index:
+            continue
+        if edge.kind != "double":
+            continue
+        partner = edge.to if edge.from_ == atom_index else edge.from_
+        if partner in cyclic_atoms:
+            return True
+    return False
 
 
 def aromatic_rings(atoms: list[Atom], edges: list[Edge]) -> list[list[int]]:
-    """Six-membered cycles where every atom is sp2 (participates in a
-    double bond) or aromatic-flagged - the fused-system rule (per-ring
-    alternation can never see both naphthalene rings). Full Hueckel
-    pi-electron counting is a later slice."""
-    cycles = [c for c in _ring_cycles(edges, len(atoms)) if len(c) == 6]
-    return [c for c in cycles if all(_is_sp2(i, atoms, edges) for i in c)]
+    """Six-membered cycles where every atom is sp2 - the fused-system
+    rule (per-ring alternation can never see both naphthalene rings).
+    Full Hueckel pi-electron counting is a later slice."""
+    cycles = _ring_cycles(edges, len(atoms))
+    cyclic_atoms = {atom for cycle in cycles for atom in cycle}
+    six = [c for c in cycles if len(c) == 6]
+    return [c for c in six
+            if all(_is_sp2(i, atoms, edges, cyclic_atoms) for i in c)]
 
 
 def bond_kind(a: int, b: int, edges: list[Edge]) -> str | None:

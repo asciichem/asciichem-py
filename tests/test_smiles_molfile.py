@@ -39,9 +39,33 @@ def test_rejects_v1_subset(bad):
     # closure-bearing child continues the chain.
     "C1=CCC(C)C(C)C1", "C1CC2CCC1C2", "C1CC(C)CCC1"])
 def test_writer_is_stable_and_structure_preserving(smiles):
+    # Canonicalization maps many models to one spelling (Kekule ->
+    # aromatic), so model equality is not the invariant — composition
+    # and connectivity must survive and the form must be a fixed
+    # point.
     once = write_smiles(parse_smiles(smiles))
     assert write_smiles(parse_smiles(once)) == once
-    assert parse_smiles(once).nodes[0] == parse_smiles(smiles).nodes[0]
+    before = build_graph(parse_smiles(smiles).nodes[0])
+    after = build_graph(parse_smiles(once).nodes[0])
+    assert len(after[0]) == len(before[0])
+    assert len(after[1]) == len(before[1])
+
+
+@pytest.mark.parametrize("kekule, canonical", [
+    ("C1=CC=CC=C1", "c1ccccc1"),
+    ("CC(=O)OC1=CC=CC=C1C(=O)O", "CC(=O)Oc1ccccc1C(=O)O"),
+    ("ClC1=CC=CC=C1", "Clc1ccccc1"),
+    ("C1=CC=NC=C1", "c1ccncc1"),
+    ("C1=CC=C2C=CC=CC2=C1", "c1ccc2ccccc2c1"),
+])
+def test_canonicalizes_perceived_aromatic_rings(kekule, canonical):
+    assert write_smiles(parse_smiles(kekule)) == canonical
+    assert write_smiles(parse_smiles(canonical)) == canonical
+
+
+@pytest.mark.parametrize("smiles", ["O=C1C=CC=CC1", "O=C1C=CC(=O)C=C1"])
+def test_keeps_quinones_kekule(smiles):
+    assert write_smiles(parse_smiles(smiles)) == smiles
 
 
 def atom_line(x, y, z, sym):

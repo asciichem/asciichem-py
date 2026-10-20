@@ -3,13 +3,15 @@ AsciiChem::Smiles. v1 subset deferrals (actionable ParseErrors):
 chirality @/@@, E/Z bond directions / \\, wildcards, bonded ring
 closures the digit form cannot carry. The writer is deterministic
 (DFS tree, single-bond continuations, order-independent token
-tie-breaks) - aspirin and naphthalene round-trip exactly."""
+tie-breaks). Aromatic rings perceived from Kekule input are written
+in the canonical lowercase form."""
 from __future__ import annotations
 
 import re
 
 from .model import Atom, Bond, Formula, Molecule, ParseError
 from .structure import Edge, build_graph, linearize
+from .perception import aromatic_rings
 
 ORGANIC = ("Cl", "Br", "B", "C", "N", "O", "P", "S", "F", "I")
 AROMATIC_TWO = ("se", "as")
@@ -326,13 +328,28 @@ def _write_molecule(molecule: Molecule) -> str:
     for edge in edges:
         adjacency[edge.from_][edge.to] = edge.kind
         adjacency[edge.to][edge.from_] = edge.kind
-    return _DeterministicWriter(atoms, adjacency).write()
+    # The canonicalizer consumes the perception pass: atoms in
+    # perceived aromatic rings are written lowercase and the ring
+    # bonds between them carry no bond symbol, so Kekule benzene
+    # canonicalizes to `c1ccccc1`.
+    perceived_aromatic: set[int] = set()
+    perceived_ring_edges: set[tuple[int, int]] = set()
+    for ring in aromatic_rings(atoms, edges):
+        perceived_aromatic.update(ring)
+        for i, atom in enumerate(ring):
+            other = ring[(i + 1) % len(ring)]
+            perceived_ring_edges.add((min(atom, other), max(atom, other)))
+    return _DeterministicWriter(
+        atoms, adjacency, perceived_aromatic, perceived_ring_edges).write()
 
 
 class _DeterministicWriter:
-    def __init__(self, atoms, adjacency):
+    def __init__(self, atoms, adjacency, perceived_aromatic=None,
+                 perceived_ring_edges=None):
         self.atoms = atoms
         self.adjacency = adjacency
+        self.perceived_aromatic = perceived_aromatic or set()
+        self.perceived_ring_edges = perceived_ring_edges or set()
         self.visited: set[int] = set()
         self.digits: list[list[str]] = [[] for _ in atoms]
         self.digit_by_edge: dict[tuple[int, int], str] = {}
@@ -429,6 +446,13 @@ class _DeterministicWriter:
         token = BOND_TOKENS.get(kind)
         if not token:
             raise ParseError(f"{kind} bonds have no SMILES form (v1 subset)")
+        # A bond inside a perceived aromatic ring is implied by the
+        # lowercase atoms: writing `=`/`-` there would state Kekule
+        # alternation the canonical form does not carry.
+        ring_key = (min(from_, to), max(from_, to))
+        if (ring_key in self.perceived_ring_edges
+                and self._aromatic(from_) and self._aromatic(to)):
+            return ""
         if kind not in ("single", "aromatic"):
             return token
         if kind == "single":
@@ -437,7 +461,7 @@ class _DeterministicWriter:
 
     def _atom_token(self, index: int) -> str:
         atom = self.atoms[index]
-        aromatic = atom.aromatic is True
+        aromatic = self._aromatic(index)
         lowercase = aromatic and atom.element in LOWERABLE_AROMATIC
         needs_bracket = (atom.charge is not None or atom.isotope is not None
                          or atom.hydrogens is not None
@@ -457,7 +481,8 @@ class _DeterministicWriter:
         return token + "]"
 
     def _aromatic(self, index: int) -> bool:
-        return self.atoms[index].aromatic is True
+        return (self.atoms[index].aromatic is True
+                or index in self.perceived_aromatic)
 
 
 def _charge_suffix(charge: str) -> str:
