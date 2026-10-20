@@ -47,6 +47,7 @@ class Atom:
     y2: Optional[float] = None
     z2: Optional[float] = None
     atom_parity: Optional[str] = None
+    chirality: Optional[str] = None
     spin_multiplicity: Optional[str] = None
     atom_title: Optional[str] = None
     x_fract: Optional[float] = None
@@ -57,6 +58,9 @@ class Atom:
 @dataclass
 class Bond:
     kind: str = "single"
+    # SMILES directional single bond (/ up, \ down) flanking a
+    # stereogenic double bond — orthogonal to the kind.
+    direction: Optional[str] = None
 
     @property
     def ascii(self) -> str:

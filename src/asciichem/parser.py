@@ -289,6 +289,11 @@ class Parser:
                           lone_pairs, radical_electrons, ring_closures, annotations)
 
     def bond_token(self):
+        # Directional single bonds (SMILES E/Z) before the plain kinds.
+        if self.pos < len(self.s) and self.s[self.pos] in '/\\':
+            direction = "up" if self.s[self.pos] == "/" else "down"
+            self.pos += 1
+            return Bond("single", direction=direction)
         for token, kind in BOND_KINDS:
             if self.s.startswith(token, self.pos):
                 self.pos += len(token)
@@ -332,6 +337,7 @@ class Parser:
         out = {}
         for rule, key in ((self.coordinate_annotation, "coord"),
                           (self.parity_annotation, "parity"),
+                          (self.chirality_annotation, "chirality"),
                           (self.multiplicity_annotation, "spin"),
                           (self.title_annotation, "title"),
                           (self.fractional_annotation, "fract")):
@@ -364,6 +370,17 @@ class Parser:
             self.pos += 1
             return parity
         self.fail("R/S")
+
+    def chirality_annotation(self):
+        # Tetrahedral parity classes (SMILES @/@@ semantics, spelled
+        # explicitly beside the CIP @R/@S label).
+        if not self.eat("@"):
+            self.fail("@")
+        for token in ("TH1", "TH2"):
+            if self.s.startswith(token, self.pos):
+                self.pos += len(token)
+                return token
+        self.fail("TH1/TH2")
 
     def multiplicity_annotation(self):
         if not self.eat("@m("):
@@ -707,6 +724,7 @@ def build_atom(element, isotope, subscript, superscript, lone_pairs,
         y2=float(coord[1]) if coord else None,
         z2=float(coord[2]) if coord else None,
         atom_parity=annotations.get("parity"),
+        chirality=annotations.get("chirality"),
         spin_multiplicity=annotations.get("spin"),
         atom_title=annotations.get("title"),
         x_fract=float(fract[0]) if fract else None,
