@@ -5,6 +5,14 @@ on:
   push:
     branches: [main]
 
+env:
+  # Hermetic CI: the corpus ref is pinned, never floating. Bump this
+  # one line deliberately with each corpus release (the tag carries
+  # what changed). The asciichem-model clone stays floating until the
+  # model release carrying the stereo/flows wire fields — then pin it
+  # the same way.
+  CORPUS_REF: v0.8.0
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -15,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Clone conformance corpus (asciichem-tests)
-        run: git clone --depth 1 https://github.com/asciichem/asciichem-tests.git ../asciichem-tests
+        run: git clone --depth 1 --branch "$CORPUS_REF" https://github.com/asciichem/asciichem-tests.git ../asciichem-tests
       - name: Clone model schemas (asciichem-model)
         run: git clone --depth 1 https://github.com/asciichem/asciichem-model.git ../asciichem-model
       - uses: actions/setup-python@v5
