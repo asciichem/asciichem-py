@@ -7,11 +7,13 @@ from .model import AsciiChemError, ParseError
 from .parser import parse_text
 from .text import render
 from .mathml import render_mathml
+from .svg import render_structural_svg, render_svg
 from .wire import from_model_json, to_model_json, to_wire
 
 __version__ = "0.1.0"
 __all__ = ["parse_text", "from_model_json", "to_model_json", "to_wire",
-           "render_mathml", "AsciiChemError", "ParseError", "__version__"]
+           "render_mathml", "render_structural_svg", "render_svg",
+           "AsciiChemError", "ParseError", "__version__"]
 
 
 def _render(node):
