@@ -10,8 +10,8 @@ from typing import Optional
 
 from .model import (Atom, Bond, Calculation, Crystal, ElectronConfiguration,
                     EmbeddedMath, Formula, Group, Mechanism, Molecule, Name,
-                    ParseError, Reaction, ReactionCascade, Spectrum, Text,
-                    ZMatrix)
+                    ParseError, Reaction, ReactionCascade, ReactionConditions,
+                    Spectrum, Text, ZMatrix)
 
 DIGITS = re.compile(r"^\d+$")
 
@@ -197,7 +197,8 @@ def to_wire(node) -> dict:
 
 
 _CORE_INGEST = {"formula", "atom", "molecule", "group", "bond", "reaction",
-                "reaction-cascade", "electron-configuration", "embedded-math", "text"}
+                "reaction-cascade", "electron-configuration", "embedded-math", "text",
+                "mechanism"}
 
 
 def from_model_json(data) -> Formula:
@@ -260,4 +261,20 @@ def _from_node(wire) -> object:
         return EmbeddedMath(wire["source"])
     if kind == "text":
         return Text(wire["content"])
+    if kind == "mechanism":
+        # The model keeps a step's reaction as TEXT; the wire carries
+        # the typed node, so ingestion renders it back through the
+        # canonical text form.
+        from .model import Mechanism, MechanismFlow, MechanismStep
+        from .text import render
+
+        steps = []
+        for s in wire.get("steps", []):
+            reaction = render(_from_node(s["reaction"]))
+            flows = [MechanismFlow(f["source"], f["target"])
+                     for f in s.get("flows", [])]
+            steps.append(MechanismStep(s["label"], reaction, flows))
+        spectators = [render(_from_node(sp))
+                      for sp in wire.get("spectators", [])]
+        return Mechanism(steps, spectators)
     raise ParseError(f"unhandled wire type: {kind}")

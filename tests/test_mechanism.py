@@ -52,3 +52,20 @@ def test_emits_flows_on_the_wire():
 def test_omits_flows_from_the_wire_when_absent():
     wire = to_wire(mechanism("s1: A -> B"))
     assert "flows" not in wire["steps"][0]
+
+
+def test_round_trips_through_the_wire_form():
+    from asciichem.text import render
+    from asciichem.wire import from_model_json, to_model_json
+
+    source = ("mechanism{\n"
+              "  s1: A-B -> A + B | flow: A-B > A; B > B-C\n"
+              "  s2: 2C ->[cat: Pd] D\n"
+              "  spectator: Na^+\n}")
+    parsed = from_model_json(to_model_json(parse_text(source)))
+    assert render(parsed) == source
+    mech = parsed.nodes[0]
+    step = mech.steps[0]
+    assert [(f.source, f.target) for f in step.flows] == [
+        ("A-B", "A"), ("B", "B-C")]
+    assert mech.spectators == ["Na^+"]
