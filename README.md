@@ -45,7 +45,21 @@ schemas (both cloned as siblings):
 | L3 | 100% — `@`/`@@` chirality, directional bonds; every stereo fixture |
 | SMILES | 100% — ingestion + deterministic emission, every `structure/smiles/*` fixture (asciichem-tests v0.8.0) |
 | molfile | 100% — V2000 ingestion + emission, every `structure/molfile/*` fixture |
-| MathML / resolver | not yet claimed (tracked follow-ups; the Ruby and TS implementations have them) |
+| L2 (MathML goldens) | 100% — byte-identical against the corpus goldens |
+| Resolver / InChI | not claimed — `asciichem.inchi` provides an engine seam only; no bundled engine |
+
+### Conformance levels
+
+Mapped onto the ecosystem's formal levels — see
+[the levels document](https://www.asciichem.org/guides/conformance-levels/):
+
+| Level | Claim |
+|---|---|
+| L0 notation | **yes** — parse/reject and canonical Text round-trip at 100% |
+| L1 semantics | **yes** — wire emission validates against the v1 JSON Schemas (corpus `L0` gate at 100%) |
+| L2 render | **yes** — canonical text, wire, MathML goldens, SVG byte-exact with the TypeScript implementation |
+| L3 stereo | **yes** — `@`/`@@` chirality, directional bonds |
+| L4 identity | not claimed — engine seam only; no bundled engine |
 
 ## Development
 
