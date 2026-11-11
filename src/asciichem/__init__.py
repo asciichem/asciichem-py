@@ -10,7 +10,7 @@ from .mathml import render_mathml
 from .svg import render_structural_svg, render_svg
 from .wire import from_model_json, to_model_json, to_wire
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __all__ = ["parse_text", "from_model_json", "to_model_json", "to_wire",
            "render_mathml", "render_structural_svg", "render_svg",
            "AsciiChemError", "ParseError", "__version__"]
