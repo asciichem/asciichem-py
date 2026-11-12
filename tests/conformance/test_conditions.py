@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from asciichem.model import Reaction
-from asciichem.parser import parse_text
+from asciichem import parse_text
 
 CORPUS = Path(os.environ.get("ASCIICHEM_CORPUS",
                              Path.cwd().parent / "asciichem-tests"))

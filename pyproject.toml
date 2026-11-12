@@ -9,7 +9,11 @@ description = "Python implementation of AsciiChem - parse ASCII chemistry into a
 readme = "README.md"
 license = { text = "BSD-2-Clause" }
 requires-python = ">=3.10"
-dependencies = []
+# TODO.v2/17 slice 9: parsing runs on the parsanol family over the
+# checksummed AsciiChem PARG artifact — the same grammar contract the
+# Rust, Ruby, and TS runtimes consume. parsanol (PyPI) vendors the
+# libparsanol cdylib per platform wheel.
+dependencies = ["parsanol>=0.1.26"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "jsonschema>=4", "pyyaml>=6", "referencing>=0.35"]
@@ -22,3 +26,6 @@ Repository = "https://github.com/asciichem/asciichem-py"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+asciichem = ["parg/*.json"]

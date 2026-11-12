@@ -13,7 +13,7 @@ from .model import (Atom, Bond, Calculation, Crystal, ElectronConfiguration,
                     EmbeddedMath, Formula, Group, Mechanism, Molecule, Node,
                     Reaction, ReactionCascade, Spectrum, Text, ZMatrix,
                     STEREO_LETTER, AsciiChemError)
-from .parser import parse_text
+from .engine import parse_text
 
 MATHML_NS = "http://www.w3.org/1998/Math/MathML"
 

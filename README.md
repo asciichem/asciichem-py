@@ -10,9 +10,16 @@ Strategy A of the ecosystem's [language-binding
 ADR](https://github.com/asciichem/asciichem-ts/blob/main/docs/adr/0001-language-bindings.adoc):
 a native implementation conforming to the shared contracts —
 `asciichem-model` (v1 wire form) and `asciichem-tests` (the corpus
-every implementation passes). The Ruby gem is the reference; this
-package, like the TypeScript one, must agree with it on every corpus
-case. Zero runtime dependencies.
+every implementation passes). This package, like the TypeScript one,
+must agree with the reference on every corpus case.
+
+Parsing runs on the **parsanol family** (TODO.v2/17 slice 9): the
+grammar is NOT reimplemented here — `asciichem.engine` consumes the
+checksummed AsciiChem PARG artifact (vendored at
+`src/asciichem/parg/asciichem.json`, the same artifact the Rust core
+embeds and the Ruby reference vendors) through
+[`parsanol`](https://pypi.org/project/parsanol/), the one runtime
+dependency (its per-platform wheels vendor the native engine).
 
 ## Usage
 

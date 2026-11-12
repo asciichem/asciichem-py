@@ -22,5 +22,5 @@ for _ in range(N):
     for s in WORKLOAD:
         parse_text(s)
 ms = (time.perf_counter() - t0) * 1000
-print(f"rd: {N} batches of 10 in {ms:.1f} ms")
+print(f"parsanol: {N} batches of 10 in {ms:.1f} ms")
 print(f"batch: {ms / N:.2f} ms; per input: {ms / N / 10 * 1000:.0f} µs")

@@ -2,7 +2,7 @@ import pytest
 
 from asciichem.inchi import (EngineMissingError, Identity, RdkitEngine,
                              get_engine, identity_for, set_engine)
-from asciichem.parser import parse_text
+from asciichem import parse_text
 
 
 @pytest.fixture
