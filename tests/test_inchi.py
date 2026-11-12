@@ -11,8 +11,13 @@ def ethanol():
 
 
 def test_missing_engine_raises_with_guidance(ethanol):
-    with pytest.raises(EngineMissingError, match="no InChI engine configured"):
-        identity_for(ethanol)
+    previous = get_engine()
+    set_engine(None)
+    try:
+        with pytest.raises(EngineMissingError, match="no InChI engine configured"):
+            identity_for(ethanol)
+    finally:
+        set_engine(previous)
 
 
 def test_engine_registration_and_identity(ethanol):
