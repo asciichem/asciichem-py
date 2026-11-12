@@ -1,19 +1,24 @@
-"""Shared-corpus conformance: the CLI family (suite 0.11.0), in the
-runner contract's pending posture. Each case runs `invocation`
-(the argv after the program name) against the implementation's CLI
-dispatch and asserts exit plus the stdout/stderr matchers.
+"""Shared-corpus conformance: the CLI family (suite 0.11.0). Each
+case runs `invocation` (the argv after the program name) against the
+implementation's CLI dispatch - in-process through
+`asciichem.cli.run` (no subprocesses) - and asserts `exit` plus the
+stdout/stderr matchers: `stdout` exact (with `{version}` standing for
+this implementation's own version), `stdoutIncludes` (every entry
+appears), `stdoutJson` (semantic equality with the parsed stdout
+JSON), `stderrIncludes` (every entry appears in stderr). Exactly one
+stdout matcher per case.
 
-asciichem-py ships no CLI yet - the corpus expects the offline
-command set (convert, validate, lint, roundtrip, parse-cml, version,
-tree). Per the runner contract, `pending` implementations skip and
-report - never fail silently: every case below reports a skip naming
-the missing capability, so the family's absence stays visible in the
-conformance output until the CLI lands."""
+Cases marked `pending` listing this implementation skip and report -
+never fail silently."""
+import io
 import json
 import os
 from pathlib import Path
 
 import pytest
+
+import asciichem
+from asciichem import cli
 
 CORPUS = Path(os.environ.get("ASCIICHEM_CORPUS",
                              Path.cwd().parent / "asciichem-tests"))
@@ -35,5 +40,26 @@ def cli_fixtures():
 
 @pytest.mark.parametrize("case", cli_fixtures(), ids=lambda c: c["id"])
 def test_cli_invocation(case):
-    pytest.skip("asciichem-py ships no CLI yet (pending) - the offline "
-                "command set is a follow-up convergence slice")
+    pending = case.get("pending") or []
+    if "asciichem-py" in pending:
+        pytest.skip(f'{case["id"]} is pending for asciichem-py in the '
+                    "corpus - the implementation lacks the marked "
+                    "capability; the case is exercised when the mark "
+                    "is lifted")
+    out, err = io.StringIO(), io.StringIO()
+    code = cli.run(list(case["invocation"]), out=out, err=err)
+    stdout, stderr = out.getvalue(), err.getvalue()
+    context = (f'{case["id"]}: exit {code}, stdout {stdout!r}, '
+               f"stderr {stderr!r}")
+    assert code == case["exit"], context
+    if "stdout" in case:
+        expected = case["stdout"].replace("{version}",
+                                          asciichem.__version__)
+        assert stdout == expected, context
+    elif "stdoutIncludes" in case:
+        for entry in case["stdoutIncludes"]:
+            assert entry in stdout, f"{context}; missing {entry!r}"
+    elif "stdoutJson" in case:
+        assert json.loads(stdout) == case["stdoutJson"], context
+    for entry in case.get("stderrIncludes", []):
+        assert entry in stderr, f"{context}; stderr missing {entry!r}"
