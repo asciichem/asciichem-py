@@ -4,7 +4,7 @@ parse("H_2O").to_text()      canonical AsciiChem text (round-trip contract)
 parse("H_2O").to_model_json()   asciichem-model v1 wire JSON
 """
 from .model import AsciiChemError, ParseError
-from .parser import parse_text
+from .engine import parse_text
 from .text import render
 from .mathml import render_mathml
 from .svg import render_structural_svg, render_svg

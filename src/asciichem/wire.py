@@ -164,7 +164,7 @@ def to_wire(node) -> dict:
             wire["rows"] = rows
         return wire
     if isinstance(node, Mechanism):
-        from .parser import parse_text
+        from .engine import parse_text
         wire = {"type": "mechanism"}
         if node.steps:
             steps = []

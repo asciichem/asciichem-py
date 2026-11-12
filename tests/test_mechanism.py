@@ -4,7 +4,7 @@ Unknown clauses are rejected, never dropped."""
 import pytest
 
 from asciichem.model import Mechanism, ParseError
-from asciichem.parser import parse_text
+from asciichem import parse_text
 from asciichem.text import render
 from asciichem.wire import to_wire
 
@@ -33,8 +33,8 @@ def test_round_trips_canonical_text_exactly():
 
 
 def test_rejects_unknown_clause_kind():
-    # The backtracking parser reports its generic error; the clause is
-    # still rejected rather than dropped.
+    # The grammar-level rejection reports its generic error; the clause
+    # is still rejected rather than dropped.
     with pytest.raises(ParseError):
         mechanism("s1: A -> B | curve: A > B")
 
