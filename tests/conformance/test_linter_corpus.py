@@ -34,14 +34,20 @@ def _has_rdkit() -> bool:
     return importlib.util.find_spec("rdkit") is not None
 
 
-if _has_rdkit():
-    # Engine-present posture: the corpus's `engine: "inchi"` cases
-    # exercise the identity cross-check through the real engine.
-    from asciichem.inchi import RdkitEngine, set_engine
-
-    set_engine(RdkitEngine())
-
 POSTURE = "inchi" if _has_rdkit() else "none"
+
+
+@pytest.fixture(autouse=True)
+def _engine_posture():
+    if not _has_rdkit():
+        yield
+        return
+    from asciichem.inchi import RdkitEngine, get_engine, set_engine
+
+    previous = get_engine()
+    set_engine(RdkitEngine())
+    yield
+    set_engine(previous)
 
 
 def linter_fixtures():
