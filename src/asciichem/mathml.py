@@ -93,6 +93,13 @@ def render_mathml(formula) -> str:
     return f'<?xml version="1.0" encoding="UTF-8"?>\n{xml}\n'
 
 
+def render_fragment(node: Node) -> str:
+    """One node's MathML without the document wrapper (declaration and
+    trailing newline) - the embeddable face the html formatter inlines
+    for embedded math."""
+    return _serialize(render(node))
+
+
 @_formats(Formula)
 def _formula(f: Formula) -> _El:
     return _el("math", {"xmlns": MATHML_NS}, [_el("mrow", None, [render(n) for n in f.nodes])])

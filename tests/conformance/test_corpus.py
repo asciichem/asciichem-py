@@ -166,3 +166,18 @@ def mathml_fixtures():
 def test_l2_mathml_golden(case):
     from asciichem.mathml import render_mathml
     assert render_mathml(parse_text(case["input"])) == case["mathml"], case["id"]
+
+
+# L3: CML round-trip - parse -> CML wire -> parse -> canonical text
+# equals the input (the three-way contract; the wire carries the
+# aci: extension channels for what plain CML does not cover).
+def cml_fixtures():
+    return [c for c in fixtures() if c.get("cmlRoundTrip")]
+
+
+@pytest.mark.parametrize("case", cml_fixtures(), ids=lambda c: c["id"])
+def test_l3_cml_round_trip(case):
+    from asciichem import cml
+    xml = cml.to_cml(parse_text(case["input"]))
+    restored = cml.parse_cml(xml)
+    assert render(restored) == case["input"], case["id"]

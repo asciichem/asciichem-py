@@ -7,14 +7,19 @@ from .model import AsciiChemError, ParseError
 from .engine import parse_text
 from .text import render
 from .mathml import render_mathml
+from .html import render_html
+from .latex import render_latex
 from .svg import render_structural_svg, render_svg
+from .cml import parse_cml, to_cml
 from .wire import (from_model_json, substance_from_wire, substance_to_wire,
                    to_model_json, to_wire)
 
 __version__ = "0.1.3"
 __all__ = ["parse_text", "from_model_json", "to_model_json", "to_wire",
            "substance_from_wire", "substance_to_wire",
-           "render_mathml", "render_structural_svg", "render_svg",
+           "render_mathml", "render_html", "render_latex",
+           "render_structural_svg", "render_svg",
+           "parse_cml", "to_cml",
            "AsciiChemError", "ParseError", "__version__"]
 
 
