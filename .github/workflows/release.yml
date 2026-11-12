@@ -24,7 +24,7 @@ jobs:
           persist-credentials: false
       - name: Verify version matches input
         run: |
-          pip install parsanol>=0.1.26
+          pip install parsanol>=0.1.26 leptris>=1.9.216
           actual=$(python -c "import sys; sys.path.insert(0, 'src'); import asciichem; print(asciichem.__version__)")
           if [ "$actual" != "${{ inputs.version }}" ]; then
             echo "Version mismatch: input=${{ inputs.version }}, code=$actual"
