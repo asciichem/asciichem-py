@@ -38,6 +38,24 @@ to_model_json(formula)   # asciichem-model v1 wire JSON
 back = from_model_json(to_model_json(formula))
 ```
 
+### Identity, resolution, citation, linting (TODO.v2 07/08/10)
+
+```python
+from asciichem import linter, citation, identifiers
+from asciichem import resolver
+from asciichem.inchi import RdkitEngine, set_engine  # pip install 'asciichem[inchi]'
+
+linter.run(parse_text("H_2 + O_2 -> H_2O"))   # [error] Reaction is not balanced: O: 2 vs 1
+resolver.resolve(value="50-78-2", convention="cas")   # Substance with per-identifier provenance
+citation.to_xml(substance)                    # dataset-type Relaton bibitem (through leptris)
+identifiers.valid("cas", "50-78-2")           # offline CAS checksum validation
+```
+
+Sources self-register (PubChem, OPSIN, CAS Common Chemistry — CC BY-NC
+4.0, default-on per the maintainer decision of 2026-11-11); the
+transport is injectable for offline runs, the TTL cache lives in the
+user cache dir, and one dead endpoint never poisons the fan-out.
+
 ## Conformance claim
 
 Verified in CI against the [asciichem-tests](https://github.com/asciichem/asciichem-tests)
@@ -50,10 +68,14 @@ schemas (both cloned as siblings):
 | L0 | 100% — emission validates against the v1 JSON Schemas |
 | L1 | 100% — `render(parse(s)) == s` for every `roundTrip` case |
 | L3 | 100% — `@`/`@@` chirality, directional bonds; every stereo fixture |
-| SMILES | 100% — ingestion + deterministic emission, every `structure/smiles/*` fixture (asciichem-tests v0.8.0) |
+| SMILES | 100% — ingestion + deterministic emission, every `structure/smiles/*` fixture |
 | molfile | 100% — V2000 ingestion + emission, every `structure/molfile/*` fixture |
 | L2 (MathML goldens) | 100% — byte-identical against the corpus goldens |
-| Resolver / InChI | not claimed — `asciichem.inchi` provides an engine seam only; no bundled engine |
+| linter | 100% — every engine-independent case plus this run's engine posture (suite 0.11.0); CI runs both postures (no-engine and rdkit) |
+| resolver | 100% — recorded-source replay, provenance, TTL caching, per-source failure isolation (suite 0.11.0) |
+| citation | 100% — byte-identical dataset bibitem goldens, emitted through leptris (suite 0.11.0) |
+| cli | pending — the offline command set is a follow-up slice; every case reports a skip |
+| Resolver / InChI | offline validators + engine seam — `asciichem.inchi` wraps RDKit via the `inchi` extra; live resolution needs network |
 
 ### Conformance levels
 
@@ -66,7 +88,7 @@ Mapped onto the ecosystem's formal levels — see
 | L1 semantics | **yes** — wire emission validates against the v1 JSON Schemas (corpus `L0` gate at 100%) |
 | L2 render | **yes** — canonical text, wire, MathML goldens, SVG byte-exact with the TypeScript implementation |
 | L3 stereo | **yes** — `@`/`@@` chirality, directional bonds |
-| L4 identity | not claimed — engine seam only; no bundled engine |
+| L4 identity | engine seam + offline identity cross-check — linter diagnostics gate at 100% (engine-posture aware); derivation wraps RDKit via the `inchi` extra |
 
 ## Development
 
