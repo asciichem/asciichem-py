@@ -9,7 +9,7 @@ env:
   # Hermetic CI: the corpus and model refs are pinned, never
   # floating. Bump these lines deliberately with each release (the
   # tag carries what changed).
-  CORPUS_REF: v0.8.0
+  CORPUS_REF: v0.11.0
   MODEL_REF: v0.6.0
 
 jobs:
@@ -30,3 +30,25 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: pip install -e ".[dev]"
       - run: python -m pytest -q
+
+  # The default job above runs the NO-ENGINE posture: the linter's
+  # identity cross-check skips with a reported warning, and the
+  # corpus's engine:"none" cases run. This job flips the posture:
+  # with rdkit installed the engine:"inchi" identity cases run
+  # instead. Together the two jobs cover every linter-expectations
+  # case (the runner contract: engine posture is implementation
+  # configuration, not a failure).
+  inchi-posture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone conformance corpus (asciichem-tests)
+        run: git clone --depth 1 --branch "$CORPUS_REF" https://github.com/asciichem/asciichem-tests.git ../asciichem-tests
+      - name: Clone model schemas (asciichem-model)
+        run: git clone --depth 1 --branch "$MODEL_REF" https://github.com/asciichem/asciichem-model.git ../asciichem-model
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev,inchi]"
+      - run: python -m pytest -q
+

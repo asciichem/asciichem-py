@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "asciichem"
 version = "0.1.2"
-description = "Python implementation of AsciiChem - parse ASCII chemistry into a semantic model; canonical text and wire JSON. Conformant with asciichem-model v1 and the asciichem-tests corpus."
+description = "Python implementation of AsciiChem - parse ASCII chemistry into a semantic model; canonical text and wire JSON; resolver, citation, and linter. Conformant with asciichem-model v1 and the asciichem-tests corpus."
 readme = "README.md"
 license = { text = "BSD-2-Clause" }
 requires-python = ">=3.10"
@@ -13,7 +13,11 @@ requires-python = ">=3.10"
 # checksummed AsciiChem PARG artifact — the same grammar contract the
 # Rust, Ruby, and TS runtimes consume. parsanol (PyPI) vendors the
 # libparsanol cdylib per platform wheel.
-dependencies = ["parsanol>=0.1.26"]
+# The citation track (TODO.v2 08) builds and serializes the dataset
+# bibitem XML through leptris (the family's lxml-shaped libleptris
+# binding; the construction face 1.9.216+) — the mandated
+# serialization layer, the same engine the Rust core emits through.
+dependencies = ["parsanol>=0.1.26", "leptris>=1.9.216"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "jsonschema>=4", "pyyaml>=6", "referencing>=0.35"]
