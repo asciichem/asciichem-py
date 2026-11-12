@@ -3,6 +3,7 @@ dataclasses; the Text formatter and wire form are views over the same
 tree (model-driven, one tree for every formatter)."""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Optional, Union
 
@@ -53,6 +54,10 @@ class Atom:
     x_fract: Optional[float] = None
     y_fract: Optional[float] = None
     z_fract: Optional[float] = None
+
+    def diagnostic_label(self) -> str:
+        """Human-readable label for linter diagnostics ("Atom(C)")."""
+        return f"Atom({self.element})"
 
 
 @dataclass
@@ -110,6 +115,68 @@ class Molecule:
     labels: list = field(default_factory=list)
     metadata: list = field(default_factory=list)
 
+    def stoichiometric_coefficient(self) -> int:
+        """The integer stoichiometric coefficient: the authored leading
+        number, or 1 when absent or not positive. Single source for
+        every consumer (reaction stoichiometry, the balance check,
+        composition) - coefficients are model data, not per-caller
+        parsing."""
+        own = int(self.coefficient) if self.coefficient else None
+        return own if own and own > 0 else 1
+
+    def element_counts(self, with_coefficient: bool = True) -> dict[str, int]:
+        """Element symbol => total atom count, recursing through groups
+        and nested molecules with subscripts and multiplicities
+        applied. Pass with_coefficient=False for the composition of a
+        single molecule instance - identifiers describe the substance,
+        not the stoichiometric multiplier."""
+        multiplier = self.stoichiometric_coefficient() if with_coefficient else 1
+        tally: dict[str, int] = {}
+        for node in self.nodes:
+            _tally_element(node, tally, multiplier)
+        return tally
+
+    def hill_formula(self) -> str:
+        """Hill-system canonical formula: C first, then H, then others
+        alphabetically. Single source of truth for "what is the
+        canonical formula string of this molecule"
+        (`H_2SO_4` -> "H2O4S" - no carbon, alpha sort)."""
+        counts = self.element_counts()
+        ordered: list[str] = []
+        for priority in ("C", "H"):
+            if priority in counts:
+                ordered.append(priority)
+        ordered.extend(e for e in sorted(counts) if e not in ("C", "H"))
+        return "".join(f"{e}{counts[e]}" if counts[e] != 1 else e
+                       for e in ordered)
+
+
+def _leading_integer(raw: Optional[str]) -> int:
+    """The leading integer of a digit string (Ruby's String#to_i
+    semantics: leading digits, 0 when none)."""
+    digits = ""
+    for char in str(raw or ""):
+        if char.isdigit():
+            digits += char
+        else:
+            break
+    return int(digits) if digits else 0
+
+
+def _tally_element(node, tally: dict[str, int], multiplier: int) -> None:
+    if isinstance(node, Atom):
+        sub = _leading_integer(node.subscript) if node.subscript else 0
+        count = (sub if sub > 0 else 1) * multiplier
+        tally[node.element] = tally.get(node.element, 0) + count
+    elif isinstance(node, Group):
+        mult = _leading_integer(node.multiplicity) if node.multiplicity else 0
+        for inner in node.nodes:
+            _tally_element(inner, tally, multiplier * (mult if mult > 0 else 1))
+    elif isinstance(node, Molecule):
+        inner_coeff = node.stoichiometric_coefficient()
+        for inner in node.nodes:
+            _tally_element(inner, tally, multiplier * inner_coeff)
+
 
 CONDITION_ROLE_PREFIXES = {
     "cat": "catalyst", "catalyst": "catalyst",
@@ -163,6 +230,11 @@ class Reaction:
     arrow: str = "forward"
     conditions: Optional[ReactionConditions] = None
 
+    def diagnostic_label(self) -> str:
+        """Human-readable label for linter diagnostics (cascade steps
+        are bare `Reaction`s, so they carry the label too)."""
+        return "Reaction"
+
     @property
     def arrow_ascii(self) -> str:
         return ARROW_ASCII[self.arrow]
@@ -205,6 +277,16 @@ class Crystal:
     spacegroup: Optional[str] = None
     atoms: list = field(default_factory=list)
 
+    # The six unit-cell parameters in canonical iteration order, split
+    # lengths vs angles - the linter iterates these without
+    # re-deriving subsets (the reference's LENGTH/ANGLE_FIELDS).
+    CELL_PARAMS = ("a", "b", "c", "alpha", "beta", "gamma")
+    LENGTH_FIELDS = ("a", "b", "c")
+    ANGLE_FIELDS = ("alpha", "beta", "gamma")
+
+    def diagnostic_label(self) -> str:
+        return f"Crystal({self.name or 'unnamed'})"
+
 
 @dataclass
 class SpectrumPeak:
@@ -220,6 +302,9 @@ class Spectrum:
     params: dict = field(default_factory=dict)
     peaks: list = field(default_factory=list)
 
+    def diagnostic_label(self) -> str:
+        return f"Spectrum({self.technique or 'unknown'})"
+
 
 @dataclass
 class CalculationProperty:
@@ -233,6 +318,9 @@ class Calculation:
     method: Optional[str] = None
     basis: Optional[str] = None
     properties: list = field(default_factory=list)
+
+    def diagnostic_label(self) -> str:
+        return f"Calculation({self.method}/{self.basis})"
 
 
 @dataclass
@@ -249,6 +337,9 @@ class ZRow:
 @dataclass
 class ZMatrix:
     rows: list = field(default_factory=list)
+
+    def diagnostic_label(self) -> str:
+        return f"ZMatrix({len(self.rows)} rows)"
 
 
 @dataclass
@@ -269,7 +360,25 @@ class Mechanism:
     steps: list = field(default_factory=list)
     spectators: list = field(default_factory=list)
 
+    def diagnostic_label(self) -> str:
+        return f"Mechanism({len(self.steps)} steps)"
+
 
 @dataclass
 class Formula:
     nodes: list
+
+
+def diagnostic_label(node) -> str:
+    """Human-readable label for linter diagnostics — the Python mirror
+    of `Model::Node#diagnostic_label`. Nodes with identifying fields
+    override (`Atom` identifies itself by element, `Crystal` by name,
+    `Reaction` stays bare); the default derives from the class name
+    (snake-case words, capitalised: `ReactionCascade` ->
+    "Reaction Cascade"). Keeping the override on the model keeps the
+    linter OCP-clean - adding a new model class means overriding the
+    method on that class, not editing a linter case statement."""
+    override = getattr(node, "diagnostic_label", None)
+    if callable(override):
+        return override()
+    return " ".join(re.findall(r"[A-Z][a-z]*", type(node).__name__))
