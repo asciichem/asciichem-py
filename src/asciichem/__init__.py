@@ -11,7 +11,7 @@ from .svg import render_structural_svg, render_svg
 from .wire import (from_model_json, substance_from_wire, substance_to_wire,
                    to_model_json, to_wire)
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 __all__ = ["parse_text", "from_model_json", "to_model_json", "to_wire",
            "substance_from_wire", "substance_to_wire",
            "render_mathml", "render_structural_svg", "render_svg",
