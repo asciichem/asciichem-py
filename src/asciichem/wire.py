@@ -209,6 +209,105 @@ def from_model_json(data) -> Formula:
     return _from_node(data)
 
 
+# -- substance records (the resolver's wire form) -------------------------
+#
+# The resolved view of a substance (asciichem-model v1
+# substance-record): every identifier and property carries its own
+# provenance. Field names follow the schema exactly (camelCase); keys
+# whose value is None are omitted (additionalProperties: false).
+
+def substance_to_wire(substance) -> dict:
+    """The canonical wire form (asciichem-model v1 substance-record)
+    of a resolved Substance."""
+    from .resolver.substance import Substance, Provenance
+    if not isinstance(substance, Substance):
+        raise TypeError(f"expected a resolver Substance, got {type(substance).__name__}")
+    wire: dict = {"type": "substance-record"}
+    if substance.preferred_name is not None:
+        wire["preferredName"] = substance.preferred_name
+    if substance.synonyms:
+        wire["synonyms"] = list(substance.synonyms)
+    if substance.formula is not None:
+        wire["formula"] = substance.formula
+    if substance.molecular_weight is not None:
+        wire["molecularWeight"] = substance.molecular_weight
+    identifiers_wire = []
+    for i in substance.identifiers:
+        entry = {"identifier": {"type": "identifier", "value": i.value,
+                                "convention": i.convention}}
+        provenance = _provenance_wire(i.provenance)
+        if provenance is not None:
+            entry["provenance"] = provenance
+        identifiers_wire.append(entry)
+    wire["identifiers"] = identifiers_wire
+    if substance.properties:
+        wire["properties"] = [
+            _merge({"name": p.name, "value": p.value,
+                    "units": p.units, "provenance": p.provenance},
+                   _provenance_wire(p.provenance))
+            for p in substance.properties]
+    return wire
+
+
+def _provenance_wire(provenance):
+    if provenance is None:
+        return None
+    out = {"type": "provenance", "source": provenance.source}
+    for wire_key, value in (("retrievedAt", provenance.retrieved_at),
+                            ("sourceVersion", provenance.source_version),
+                            ("attribution", provenance.attribution)):
+        if value is not None:
+            out[wire_key] = value
+    return out
+
+
+def _merge(base: dict, provenance: dict | None) -> dict:
+    out = {k: v for k, v in base.items()
+           if v is not None and k != "provenance"}
+    if provenance is not None:
+        out["provenance"] = provenance
+    return out
+
+
+def substance_from_wire(data) -> object:
+    """Rebuilds a resolver Substance from the wire form (the cache
+    path). Accepts a dict or a JSON string."""
+    from .resolver.substance import (Identifier, Property, Provenance,
+                                     Substance)
+    if isinstance(data, str):
+        data = json.loads(data)
+    if data.get("type") != "substance-record":
+        raise ParseError(
+            f"expected a substance-record node, got {data.get('type')!r}")
+    return Substance(
+        preferred_name=data.get("preferredName"),
+        synonyms=list(data.get("synonyms") or []),
+        formula=data.get("formula"),
+        molecular_weight=data.get("molecularWeight"),
+        identifiers=[
+            Identifier(
+                value=pi["identifier"]["value"],
+                convention=pi["identifier"]["convention"],
+                provenance=_provenance_domain(pi.get("provenance")))
+            for pi in data.get("identifiers", [])],
+        properties=[
+            Property(
+                name=p["name"], value=p["value"],
+                units=p.get("units"),
+                provenance=_provenance_domain(p.get("provenance")))
+            for p in data.get("properties", [])])
+
+
+def _provenance_domain(wire: dict | None):
+    if wire is None:
+        return None
+    from .resolver.substance import Provenance
+    return Provenance(source=wire["source"],
+                      retrieved_at=wire.get("retrievedAt"),
+                      source_version=wire.get("sourceVersion"),
+                      attribution=wire.get("attribution"))
+
+
 def _from_node(wire) -> object:
     kind = wire.get("type")
     if kind not in _CORE_INGEST:
