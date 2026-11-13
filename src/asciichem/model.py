@@ -267,13 +267,19 @@ class Text:
 
 @dataclass
 class Crystal:
+    """A crystallographic cell: unit-cell parameters, space group, and
+    the asymmetric-unit atoms with fractional coordinates (rs#28's
+    authoritative shape). The cell parameters carry the AUTHORED
+    strings - the wire form casts them to numbers (the shared v1
+    crystal schema's ``type: number``), and the routing casts back on
+    ingestion."""
     name: Optional[str] = None
-    a: Optional[float] = None
-    b: Optional[float] = None
-    c: Optional[float] = None
-    alpha: Optional[float] = None
-    beta: Optional[float] = None
-    gamma: Optional[float] = None
+    a: Optional[str] = None
+    b: Optional[str] = None
+    c: Optional[str] = None
+    alpha: Optional[str] = None
+    beta: Optional[str] = None
+    gamma: Optional[str] = None
     spacegroup: Optional[str] = None
     atoms: list = field(default_factory=list)
 
@@ -283,6 +289,27 @@ class Crystal:
     CELL_PARAMS = ("a", "b", "c", "alpha", "beta", "gamma")
     LENGTH_FIELDS = ("a", "b", "c")
     ANGLE_FIELDS = ("alpha", "beta", "gamma")
+
+    def cell_params(self) -> list[tuple[str, str]]:
+        """The six cell parameters that are set, in canonical order,
+        paired with their text labels - the single source of truth for
+        "which cell fields are set and in what order" (the reference's
+        ``each_cell_param``); formatters consult this instead of
+        inlining their own field lists."""
+        return [(label, value) for label in self.CELL_PARAMS
+                if (value := getattr(self, label)) is not None]
+
+    @staticmethod
+    def greek_label(label: str, format: str) -> str:
+        """Per-format label overrides for the angle names: MathML, HTML
+        and LaTeX spell the Greek letters (the reference's
+        CELL_LABELS); text spells them out."""
+        if format == "latex":
+            return {"alpha": r"\alpha", "beta": r"\beta",
+                    "gamma": r"\gamma"}.get(label, label)
+        if format in ("mathml", "html"):
+            return {"alpha": "α", "beta": "β", "gamma": "γ"}.get(label, label)
+        return label
 
     def diagnostic_label(self) -> str:
         return f"Crystal({self.name or 'unnamed'})"

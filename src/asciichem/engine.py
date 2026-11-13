@@ -561,11 +561,13 @@ def build_crystal(name, params_raw, body) -> Crystal:
             if isinstance(node, Molecule):
                 atoms.extend(n for n in node.nodes if isinstance(n, Atom))
 
-    def num(key):
-        return float(params[key]) if key in params else None
+    # Cell parameters keep the authored strings (the authoritative
+    # model's shape, rs#28); the wire form casts to numbers.
+    def cell(key):
+        return params.get(key)
 
-    return Crystal(name=name or None, a=num("a"), b=num("b"), c=num("c"),
-                   alpha=num("alpha"), beta=num("beta"), gamma=num("gamma"),
+    return Crystal(name=name or None, a=cell("a"), b=cell("b"), c=cell("c"),
+                   alpha=cell("alpha"), beta=cell("beta"), gamma=cell("gamma"),
                    spacegroup=params.get("sg"), atoms=atoms)
 
 

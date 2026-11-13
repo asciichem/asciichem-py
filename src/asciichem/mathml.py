@@ -282,19 +282,13 @@ def _simple_table(rows) -> _El:
     ])
 
 
-_CELL_LABELS = {"a": "a", "b": "b", "c": "c", "alpha": "α", "beta": "β", "gamma": "γ"}
-
-
 @_formats(Crystal)
 def _crystal(crystal: Crystal) -> _El:
     children = [_mi("crystal")]
     if crystal.name is not None:
         children.append(_named_bracket(crystal.name))
-    params = []
-    for key in ("a", "b", "c", "alpha", "beta", "gamma"):
-        value = getattr(crystal, key)
-        if value is not None:
-            params.append([_mi(_CELL_LABELS[key]), _mn(value)])
+    params = [[_mi(Crystal.greek_label(label, "mathml")), _mn(value)]
+              for label, value in crystal.cell_params()]
     if params:
         children.append(_simple_table(params))
     if crystal.atoms:

@@ -23,20 +23,28 @@ well-formedness, and the emitted bytes all come from libleptris.
 
 CML's standard wire covers element, isotope, charge, count, and bond
 order - not oxidation state, Lewis markers, electron configuration,
-embedded math, free-form text, or group structure. AsciiChem carries
-these through an `aci:` (AsciiChem extension) namespace, three
-channels, one per scope, each a frozen registry:
+embedded math, free-form text, group structure, the beyond-formula
+constructs, or reaction conditions. AsciiChem carries these through an
+`aci:` (AsciiChem extension) namespace, four channels, one per scope,
+each a frozen registry:
 
 - **Atom attributes** - `aci:<wire_name>` attributes on `<atom>`
   elements (`oxidationState`, `lonePairs`, `radicalElectrons`,
   `ringClosures`).
 - **Top-level elements** - `<aci:<name> position="N">text</...>`
   children of `<cml>` for `ElectronConfiguration`, `EmbeddedMath`,
-  `Text`, `Mechanism`; `position` preserves node ordering in the
-  formula.
+  `Text`, `Crystal`, `Spectrum`, `Calculation`, `ZMatrix`,
+  `Mechanism`; `position` preserves node ordering in the formula. The
+  payload is the construct's canonical text render - round-trip-safe
+  by construction (the Text formatter is the canonicaliser), the
+  reference's TopLevel handler contract.
 - **Molecule groups** - `<aci:group multiplicity="N" bracket="X"
   atomRefs="a1 a2"/>` children of `<molecule>`, preserving AsciiChem
   group structure through the canonical flattening.
+- **Reaction conditions** - `aci:conditionsAbove` /
+  `aci:conditionsBelow` attributes on `<reaction>` (the reference's
+  ConditionsExtensions attribute shape), read back per reaction
+  element in document (= canonical) order.
 
 The `xmlns:aci` declaration appears only when at least one extension
 is present; plain atoms and molecules produce clean CML. Unknown
@@ -44,9 +52,10 @@ elements and attributes are ignored on read; foreign namespaces can
 never be mistaken for a channel (classification is by resolved
 namespace URI, not by written prefix).
 
-Constructs with no wire representation and no channel (`Crystal`,
-`Spectrum`, `ZMatrix`, `Calculation`, reaction conditions, molecule
-annotations) raise `CmlError` on emit rather than dropping silently."""
+Constructs with neither wire representation nor channel raise
+`CmlError` on emit rather than dropping silently (bare atoms/bonds
+outside a molecule, reaction participants that are not molecules,
+molecule annotations)."""
 from __future__ import annotations
 
 import dataclasses
@@ -57,7 +66,8 @@ from leptris import ParseError as LeptrisParseError
 from leptris import sax
 
 from .model import (Atom, AsciiChemError, Bond, Formula, Group, Molecule,
-                    Node, Reaction, ReactionCascade, diagnostic_label)
+                    Node, Reaction, ReactionCascade, ReactionConditions,
+                    diagnostic_label)
 from . import text as text_renderer
 from .engine import parse_text
 
@@ -89,9 +99,17 @@ ATOM_FIELDS: list[tuple[str, str]] = [
     ("ring_closures", "ringClosures"),
 ]
 
-# Top-level channel element names.
+# Top-level channel element names (the registry order follows the
+# reference's TopLevel::HANDLERS).
 TOP_LEVEL_ELEMENTS = ("electronConfiguration", "embeddedMath", "text",
+                      "crystal", "spectrum", "calculation", "zmatrix",
                       "mechanism")
+
+# The per-reaction conditions channel: `aci:conditionsAbove` /
+# `aci:conditionsBelow` attributes on `<reaction>` (the reference's
+# ConditionsExtensions attribute shape), read back per reaction
+# element in document (= canonical) order.
+CONDITION_ATTRS = (("above", "conditionsAbove"), ("below", "conditionsBelow"))
 
 # Group brackets on the wire (the model stores the same names).
 BRACKETS = ("paren", "square", "brace")
@@ -221,6 +239,7 @@ class _ReactionRecord:
     arrow: str
     reactants: list
     products: list
+    conditions: Optional[ReactionConditions] = None
 
 
 # ---------------------------------------------------------------------------
@@ -304,13 +323,22 @@ def _top_level_payload(node) -> tuple[str, str]:
     Text-shaped constructs serialize as their canonical text render
     (round-trip-safe by construction); embedded math carries the raw
     source (the backticks are re-added on read)."""
-    from .model import ElectronConfiguration, EmbeddedMath, Text, Mechanism
+    from .model import (Calculation, Crystal, ElectronConfiguration,
+                        EmbeddedMath, Mechanism, Spectrum, Text, ZMatrix)
     if isinstance(node, ElectronConfiguration):
         return "electronConfiguration", text_renderer.render(node)
     if isinstance(node, EmbeddedMath):
         return "embeddedMath", node.source
     if isinstance(node, Text):
         return "text", f'"{node.content}"'
+    if isinstance(node, Crystal):
+        return "crystal", text_renderer.render(node)
+    if isinstance(node, Spectrum):
+        return "spectrum", text_renderer.render(node)
+    if isinstance(node, Calculation):
+        return "calculation", text_renderer.render(node)
+    if isinstance(node, ZMatrix):
+        return "zmatrix", text_renderer.render(node)
     if isinstance(node, Mechanism):
         return "mechanism", text_renderer.render(node)
     raise CmlError(f"construct has no CML wire representation: "
@@ -499,16 +527,13 @@ def _emit_molecule(parent, ids: _Ids, record: _MoleculeRecord) -> None:
 
 def _walk_reaction(ids: _Ids,
                    reaction: Reaction) -> tuple[_ReactionRecord, bool]:
-    if (reaction.conditions is not None
-            and (reaction.conditions.above is not None
-                 or reaction.conditions.below is not None)):
-        # The conditions channel (aci:condition, like the reference's
-        # ConditionsExtensions) is not in this slice - report rather
-        # than drop (asciichem-rs#15 remaining list).
-        raise CmlError("construct has no CML wire representation: "
-                       "reaction conditions")
-    record = _ReactionRecord(arrow=reaction.arrow, reactants=[], products=[])
-    extensions = False
+    conditions = reaction.conditions
+    has_conditions = (conditions is not None
+                      and (conditions.above is not None
+                           or conditions.below is not None))
+    record = _ReactionRecord(arrow=reaction.arrow, reactants=[], products=[],
+                             conditions=conditions if has_conditions else None)
+    extensions = has_conditions
     for molecule in reaction.reactants:
         participant, has_extensions = _walk_participant(ids, molecule)
         record.reactants.append(participant)
@@ -532,6 +557,15 @@ def _emit_reaction(parent, ids: _Ids, record: _ReactionRecord) -> None:
     element.set("id", ids.next_reaction())
     element.set("title", record.arrow)
     element.set("type", record.arrow)
+    if record.conditions is not None:
+        # The conditions channel: above/below ride `aci:` attributes on
+        # the reaction element (the reference's ConditionsExtensions
+        # attribute shape; the bracket text stays verbatim, so the
+        # typed entries re-derive on the restored model).
+        for side, attr in CONDITION_ATTRS:
+            value = getattr(record.conditions, side)
+            if value is not None:
+                element.set(f"{ACI_PREFIX}:{attr}", value)
     reactant_list = element.create_child("reactantList")
     for molecule in record.reactants:
         _emit_participant(reactant_list, ids, "reactant", molecule)
@@ -971,6 +1005,10 @@ def _read_reaction(element: _XNode) -> Reaction:
             products.extend(_read_participant(p)
                             for p in child.children_named("product"))
     conditions = None
+    above = element.attr_ns(ACI_NAMESPACE, "conditionsAbove")
+    below = element.attr_ns(ACI_NAMESPACE, "conditionsBelow")
+    if above is not None or below is not None:
+        conditions = ReactionConditions(above=above, below=below)
     return Reaction(reactants=reactants, products=products, arrow=arrow,
                     conditions=conditions)
 

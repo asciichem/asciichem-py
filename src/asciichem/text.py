@@ -175,12 +175,9 @@ def _crystal(c: Crystal) -> str:
     parts = ["crystal"]
     if c.name is not None:
         parts.append(f"[{c.name}]")
-    params = []
-    for key, attr in (("a", "a"), ("b", "b"), ("c", "c"), ("alpha", "alpha"),
-                      ("beta", "beta"), ("gamma", "gamma"), ("sg", "spacegroup")):
-        value = getattr(c, attr)
-        if value is not None:
-            params.append(f"{key}={value}")
+    params = [f"{label}={value}" for label, value in c.cell_params()]
+    if c.spacegroup is not None:
+        params.append(f"sg={c.spacegroup}")
     if params:
         parts.append("(" + ",".join(params) + ")")
     if c.atoms:
