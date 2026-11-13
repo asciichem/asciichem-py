@@ -14,7 +14,7 @@ from .cml import parse_cml, to_cml
 from .wire import (from_model_json, substance_from_wire, substance_to_wire,
                    to_model_json, to_wire)
 
-__version__ = "0.1.4"
+__version__ = "1.0.0.0"
 __all__ = ["parse_text", "from_model_json", "to_model_json", "to_wire",
            "substance_from_wire", "substance_to_wire",
            "render_mathml", "render_html", "render_latex",
