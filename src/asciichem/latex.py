@@ -68,12 +68,6 @@ class _within_ce:
         return False
 
 
-# Per-format cell-parameter labels (the reference's Crystal::CELL_LABELS):
-# the Greek angle names render as LaTeX macros.
-CELL_LABELS = {"a": "a", "b": "b", "c": "c",
-               "alpha": "\\alpha", "beta": "\\beta", "gamma": "\\gamma"}
-
-
 def mhchem_subscript(value) -> str:
     """mhchem accepts bare digits after an element as subscripts. Use
     the bare form for digit-only values; brace form for anything else."""
@@ -87,11 +81,6 @@ def wrap(value) -> str:
     s = str(value)
     kept = s.isascii() and (s.isalnum())
     return s if kept else "{" + s + "}"
-
-
-def _format_number(value) -> str:
-    """Render a cell/peak value the way the reference prints it."""
-    return str(value)
 
 
 @_formats(Formula)
@@ -229,9 +218,8 @@ def _crystal(crystal: Crystal) -> str:
     parts = ["\\text{crystal}"]
     if crystal.name is not None:
         parts.append("[" + _wrap_latex(crystal.name) + "]")
-    cell_pairs = [(CELL_LABELS[key], _format_number(getattr(crystal, key)))
-                  for key in Crystal.CELL_PARAMS
-                  if getattr(crystal, key) is not None]
+    cell_pairs = [(Crystal.greek_label(label, "latex"), value)
+                  for label, value in crystal.cell_params()]
     if cell_pairs:
         parts.append(_latex_tabular(cell_pairs))
     if crystal.atoms:

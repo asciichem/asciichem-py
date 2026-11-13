@@ -140,13 +140,50 @@ def test_read_rejects_atoms_without_element_type():
 # -- report, never drop ------------------------------------------------------
 
 @pytest.mark.parametrize("source", [
-    "crystal[a=1]{Na}",       # no wire, no channel
-    "spectrum{}",             # no wire, no channel
-    "A ->[heat] B",           # the conditions channel is not in this slice
+    "crystal[NaCl](a=5.64,sg=Fm-3m){Na@f(0,0,0) Cl@f(0.5,0.5,0.5)}",
+    "crystal(a=1,b=2,c=3)",
+    'spectrum[nmr]{\n  1.0: 3 s "CH_3"\n}',
+    "calc(b3lyp/6-31G*){\n  energy: -234.5 Hartree\n}",
+    "zmatrix{\n  O\n  H  O  0.96\n  H  O  0.96  H  104.5\n}",
+    "mechanism{\n  s1: A-B -> A + B | flow: A-B > A; B > B-C\n}",
+    "A ->[cat: Pd][solv: THF] B",
+    "A <=>[reflux][water] B",
 ])
-def test_unsupported_constructs_raise_rather_than_drop(source):
-    with pytest.raises(CmlError):
-        to_cml(parse_text(source))
+def test_round_trips_through_the_new_channels(source):
+    round_trips(source)
+
+
+def test_conditions_channel_carries_above_and_below_attributes():
+    xml = to_cml(parse_text("A ->[cat: Pd][water] B"))
+    assert 'aci:conditionsAbove="cat: Pd"' in xml
+    assert 'aci:conditionsBelow="water"' in xml
+
+
+def test_conditions_channel_preserves_cascade_step_conditions():
+    source = "A ->[heat] B ->[cat: Pd] C"
+    round_trips(source)
+
+
+def test_conditions_channel_declares_the_namespace():
+    xml = to_cml(parse_text("A ->[heat] B"))
+    assert f'xmlns:aci="{ACI_NAMESPACE}"' in xml
+
+
+def test_reaction_without_conditions_stays_clean():
+    xml = to_cml(parse_text("A -> B"))
+    assert "conditions" not in xml
+
+
+def test_top_level_channel_covers_the_beyond_formula_registry():
+    entries = [
+        ("crystal[NaCl](a=1)", "crystal"),
+        ('spectrum[nmr]{\n  1.0: 3 s "CH_3"\n}', "spectrum"),
+        ("calc(b3lyp){\n  energy: -1 Ha\n}", "calculation"),
+        ("zmatrix{\n  O\n}", "zmatrix"),
+    ]
+    for index, (source, element) in enumerate(entries):
+        xml = to_cml(parse_text(source))
+        assert f"<aci:{element} " in xml, source
 
 
 def test_bare_atoms_are_rejected_outside_a_molecule():

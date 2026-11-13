@@ -74,7 +74,8 @@ schemas (both cloned as siblings):
 | linter | 100% — every engine-independent case plus this run's engine posture (suite 0.11.0); CI runs both postures (no-engine and rdkit) |
 | resolver | 100% — recorded-source replay, provenance, TTL caching, per-source failure isolation (suite 0.11.0) |
 | citation | 100% — byte-identical dataset bibitem goldens, emitted through leptris (suite 0.11.0) |
-| CML round-trip | 100% — three-way (parse → CML → parse → text) every `cml-roundtrip` fixture (23/23), through leptris with the `aci:` extension channels |
+| CML round-trip | 100% — three-way (parse → CML → parse → text) every `cml-roundtrip` fixture (23/23), through leptris with the `aci:` extension channels (atom attributes, top-level constructs — crystal/spectrum/calculation/zmatrix/mechanism included, groups, reaction conditions) |
+| mechanism flows | 100% — every `mechanisms.json` fixture's per-step electron-flow markers, keyed by step label (suite 0.11.0) |
 | html / latex | byte parity with the reference formatters — gated through the CLI family's `convert -t html` / `-t latex` cases |
 | cli | 100% — the offline command set (`convert`, `lint` + `--json`, `validate`, `roundtrip`, `parse-cml`, `version`, `tree`) at 22/22 (suite 0.11.0), dispatched in-process |
 | Resolver / InChI | offline validators + engine seam — `asciichem.inchi` wraps RDKit via the `inchi` extra; live resolution needs network |

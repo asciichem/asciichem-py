@@ -112,10 +112,23 @@ def to_wire(node) -> dict:
         return {"type": "text", "content": node.content}
     if isinstance(node, Crystal):
         wire = {"type": "crystal"}
-        for key in ("name", "a", "b", "c", "alpha", "beta", "gamma", "spacegroup"):
+        if node.name is not None:
+            wire["name"] = node.name
+        for key in ("a", "b", "c", "alpha", "beta", "gamma"):
             value = getattr(node, key)
             if value is not None:
-                wire[key] = value
+                # The cell parameters carry NUMBERS on the wire (the
+                # shared v1 crystal schema's type:number) - the model
+                # keeps the authored strings and the emit casts. A
+                # non-numeric capture is a malformed record, not a
+                # silent null (the reference's cast).
+                try:
+                    wire[key] = float(value)
+                except ValueError:
+                    raise ParseError(
+                        f"crystal cell param {value!r} is not a number")
+        if node.spacegroup is not None:
+            wire["spacegroup"] = node.spacegroup
         if node.atoms:
             wire["atoms"] = [to_wire(a) for a in node.atoms]
         return wire
@@ -198,7 +211,22 @@ def to_wire(node) -> dict:
 
 _CORE_INGEST = {"formula", "atom", "molecule", "group", "bond", "reaction",
                 "reaction-cascade", "electron-configuration", "embedded-math", "text",
-                "mechanism"}
+                "mechanism", "crystal"}
+
+
+def _number_text(value) -> str:
+    """A wire number as model text: the reference's f64 Display shape -
+    integral values drop the decimal (90 renders "90", 5.64 "5.64"),
+    and scientific notation never appears (Python's repr switches to
+    exponents below 1e-4; the reference spells them out)."""
+    if isinstance(value, int):
+        return str(value)
+    if float(value).is_integer():
+        return str(int(value))
+    text = repr(value)
+    if "e" in text or "E" in text:
+        text = f"{value:.20f}".rstrip("0").rstrip(".")
+    return text
 
 
 def from_model_json(data) -> Formula:
@@ -376,4 +404,14 @@ def _from_node(wire) -> object:
         spectators = [render(_from_node(sp))
                       for sp in wire.get("spectators", [])]
         return Mechanism(steps, spectators)
+    if kind == "crystal":
+        from .model import Crystal
+        # The wire's numbers cast back to the model's authored-string
+        # form (the reference's f64 Display: 90 -> "90", 5.64 -> "5.64").
+        cells = {key: _number_text(wire[key])
+                 for key in ("a", "b", "c", "alpha", "beta", "gamma")
+                 if wire.get(key) is not None}
+        return Crystal(name=wire.get("name"), spacegroup=wire.get("spacegroup"),
+                       atoms=[_from_node(a) for a in wire.get("atoms", [])],
+                       **cells)
     raise ParseError(f"unhandled wire type: {kind}")

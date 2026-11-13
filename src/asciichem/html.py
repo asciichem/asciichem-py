@@ -54,12 +54,6 @@ def escape(string) -> str:
             .replace('"', "&quot;"))
 
 
-# Per-format cell-parameter labels (the reference's Crystal::CELL_LABELS):
-# the Greek angle names render as entities in HTML.
-CELL_LABELS = {"a": "a", "b": "b", "c": "c",
-               "alpha": "α", "beta": "β", "gamma": "γ"}
-
-
 @_formats(Formula)
 def _formula(f: Formula) -> str:
     inner = "".join(render(n) for n in f.nodes)
@@ -163,9 +157,8 @@ def _crystal(crystal: Crystal) -> str:
     if crystal.name is not None:
         parts.append(f'<span class="asciichem-name">'
                      f'[{escape(crystal.name)}]</span>')
-    parts.append(_kv_dl([(CELL_LABELS[key], getattr(crystal, key))
-                         for key in Crystal.CELL_PARAMS
-                         if getattr(crystal, key) is not None]))
+    parts.append(_kv_dl([(Crystal.greek_label(label, "html"), value)
+                         for label, value in crystal.cell_params()]))
     if crystal.atoms:
         parts.append('<ol class="asciichem-atoms">')
         for a in crystal.atoms:
