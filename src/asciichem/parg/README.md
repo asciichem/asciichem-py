@@ -2,7 +2,7 @@
 
 `asciichem.json` is the compiled PARG grammar of the AsciiChem syntax,
 vendored from the contract repository
-[asciichem-parg](https://github.com/asciichem/asciichem-parg) — the same
+[asciichem-grammar](https://github.com/asciichem/asciichem-grammar) — the same
 artifact `asciichem-rs` embeds (`artifacts/asciichem.json`) and the Ruby
 reference vendors (`lib/asciichem/engine/parg/asciichem.json`).
 

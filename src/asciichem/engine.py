@@ -3,7 +3,7 @@
 hand-ported recursive-descent layer is deleted — the grammar is NOT
 reimplemented in Python. This module consumes the compiled AsciiChem
 PARG artifact (vendored at ``parg/asciichem.json``, sourced from the
-asciichem-parg contract; the same artifact asciichem-rs embeds and the
+asciichem-grammar contract; the same artifact asciichem-rs embeds and the
 Ruby reference vendors), verifies its checksum through ``parsanol``
 (the Python runtime for PARG artifacts, driving ``libparsanol`` — the
 same portable engine every runtime ships), and adapts the shaped tree
@@ -83,7 +83,7 @@ def _artifact() -> PargArtifact:
             raise ValueError(
                 f"vendored PARG artifact version {version!r} does not match "
                 f"the engine's pinned grammar {PARG_GRAMMAR_VERSION!r} — "
-                "re-vendor from asciichem-parg")
+                "re-vendor from asciichem-grammar")
         _ARTIFACT = artifact
     return _ARTIFACT
 
