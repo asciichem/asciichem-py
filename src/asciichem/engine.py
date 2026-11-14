@@ -47,7 +47,7 @@ ARTIFACT_PATH = Path(__file__).parent / "parg" / "asciichem.json"
 
 # Version the vendored artifact was built from; the load fails loudly
 # on drift so the engine never runs a stale grammar.
-PARG_GRAMMAR_VERSION = "0.4.0"
+PARG_GRAMMAR_VERSION = "0.5.0"
 
 ARROW_TOKENS = {"<=>": "equilibrium", "<->": "resonance", "->": "forward", "<-": "reverse"}
 STEREO = {"alpha": "alpha", "beta": "beta", "R": "R", "S": "S", "E": "E", "Z": "Z",
