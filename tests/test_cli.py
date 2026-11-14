@@ -168,7 +168,7 @@ def test_validate_status_column_and_exit():
 
 
 def test_validate_unknown_convention_does_not_fail_the_run():
-    code, out, _ = invoke("validate", "-i", 'H_2O @iupac("water")')
+    code, out, _ = invoke("validate", "-i", 'H_2O @chebi("CHEBI:16183")')
     assert code == 0
     assert "unknown convention" in out
 

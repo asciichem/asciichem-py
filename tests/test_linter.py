@@ -93,7 +93,7 @@ def test_identifier_format_check_digit():
 
 
 def test_identifier_format_skips_uncheckable_conventions():
-    assert lint('C @iupac("methane")') == []
+    assert lint('C @chebi("CHEBI:16183")') == []
 
 
 def test_identifier_consistency_inchi_mismatch():
