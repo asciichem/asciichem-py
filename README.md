@@ -79,6 +79,7 @@ schemas (both cloned as siblings):
 | html / latex | byte parity with the reference formatters — gated through the CLI family's `convert -t html` / `-t latex` cases |
 | cli | 100% — the offline command set (`convert`, `lint` + `--json`, `validate`, `roundtrip`, `parse-cml`, `version`, `tree`) at 22/22 (suite 0.11.0), dispatched in-process |
 | Resolver / InChI | offline validators + engine seam — `asciichem.inchi` wraps RDKit via the `inchi` extra; live resolution needs network |
+| rinchi (reaction identity) | 100% — the full 36-case corpus family byte-exact in the chemomer posture (derive: the five oracle lines from every RXNfile edge and the identifier line from every RDfile edge; decode: role-resolved components, forced-equilibrium readings order-free); CI runs both postures (no-engine skips with a reported posture) — `asciichem.rinchi` wraps the chemomer engine via the `rinchi` extra |
 
 ### Conformance levels
 
