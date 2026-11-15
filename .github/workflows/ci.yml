@@ -35,9 +35,11 @@ jobs:
   # identity cross-check skips with a reported warning, and the
   # corpus's engine:"none" cases run. This job flips the posture:
   # with rdkit installed the engine:"inchi" identity cases run
-  # instead. Together the two jobs cover every linter-expectations
-  # case (the runner contract: engine posture is implementation
-  # configuration, not a failure).
+  # instead, and with chemomer installed the rinchi reaction-identity
+  # family runs all 36 cases byte-exact. Together the two jobs cover
+  # every linter-expectations case and both rinchi postures (the
+  # runner contract: engine posture is implementation configuration,
+  # not a failure).
   inchi-posture:
     runs-on: ubuntu-latest
     steps:
@@ -49,6 +51,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e ".[dev,inchi]"
+      - run: pip install -e ".[dev,inchi,rinchi]"
       - run: python -m pytest -q
 
