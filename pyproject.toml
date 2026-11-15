@@ -17,7 +17,7 @@ requires-python = ">=3.10"
 # bibitem XML through leptris (the family's lxml-shaped libleptris
 # binding; the construction face 1.9.216+) — the mandated
 # serialization layer, the same engine the Rust core emits through.
-dependencies = ["parsanol>=0.1.26", "leptris>=1.9.216"]
+dependencies = ["parsanol>=1.5.0.0", "leptris>=1.9.216"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "jsonschema>=4", "pyyaml>=6", "referencing>=0.35"]
