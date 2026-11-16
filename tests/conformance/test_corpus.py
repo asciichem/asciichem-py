@@ -133,6 +133,26 @@ def test_smiles_ingestion(case):
             parse_smiles(case["smiles"])
 
 
+# The recorded identity intersection (asciichem-tests#29): an
+# identity-capable engine derives exactly the recorded InChI.
+# Engine-gated like the other runtimes' runners — a missing engine is
+# a posture, not a failure. The recorded intersection excludes the
+# cases the molfile transport cannot express (the [nH] class), so the
+# pipe agrees on every recorded case by construction.
+@pytest.mark.parametrize("case", [c for c in smiles_fixtures()
+                                  if isinstance(c.get("inchi"), str)],
+                         ids=lambda c: c["id"])
+def test_smiles_recorded_identity(case):
+    from asciichem.inchi import EngineMissingError, identity_for
+
+    molecule = parse_smiles(case["smiles"]).nodes[0]
+    try:
+        identity = identity_for(molecule)
+    except EngineMissingError:
+        pytest.skip("no identity engine configured")
+    assert identity.inchi == case["inchi"], case["id"]
+
+
 def molfile_fixtures():
     return [c for c in fixtures() if isinstance(c.get("molfile"), str)]
 
