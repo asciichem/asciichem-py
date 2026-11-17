@@ -47,7 +47,7 @@ ARTIFACT_PATH = Path(__file__).parent / "parg" / "asciichem.json"
 
 # Version the vendored artifact was built from; the load fails loudly
 # on drift so the engine never runs a stale grammar.
-PARG_GRAMMAR_VERSION = "0.5.0"
+PARG_GRAMMAR_VERSION = "0.6.0"
 
 ARROW_TOKENS = {"<=>": "equilibrium", "<->": "resonance", "->": "forward", "<-": "reverse"}
 STEREO = {"alpha": "alpha", "beta": "beta", "R": "R", "S": "S", "E": "E", "Z": "Z",
@@ -346,6 +346,28 @@ def build_unit(unit: dict):
     raise ParseError(f"unrecognised molecule unit shape: {sorted(unit)}")
 
 
+def build_structure_reference(reference: dict):
+    """The standalone structure reference (grammar v0.6.0,
+    asciichem-rs#45): `@smiles("...")` standing alone is an ingest
+    edge — the annotation carries the structure in, the model is the
+    molecule this runtime's own SMILES reader produces. The attached
+    form (`molecule @smiles(...)`) never reaches here: there the value
+    rides apply_annotation as the identifier annotation."""
+    source = capture_text(reference.get("ref_type"))
+    if source != "smiles":
+        raise ParseError(
+            f"the structure reference carries no {source} source yet "
+            "(v1 carries smiles)")
+    value = capture_text(reference.get("ref_value"))
+    from .smiles import parse_smiles
+    nodes = parse_smiles(value).nodes
+    if len(nodes) != 1:
+        raise ParseError(
+            "the structure reference carries one connected structure "
+            "(write dot-disconnected components as separate references)")
+    return nodes[0]
+
+
 def build_molecule(mol: dict) -> Molecule:
     stereo = STEREO.get(mol["stereo"]) if "stereo" in mol else None
     coefficient = mol["coefficient"].get("value") if "coefficient" in mol else None
@@ -420,6 +442,8 @@ def strip_quotes(s: str) -> str:
 
 def build_node(node: dict):
     """One formula/group node, dispatched on the adapted capture keys."""
+    if "structure_reference" in node:
+        return build_structure_reference(node["structure_reference"])
     if "mol" in node:
         molecule = build_molecule(node["mol"])
         for ann in node.get("annotations") or []:

@@ -1,5 +1,6 @@
 import pytest
 from asciichem import ParseError, parse_text
+from asciichem.model import Atom
 from asciichem.text import render
 
 
@@ -64,3 +65,31 @@ def test_wire_ingestion_round_trip():
     for source in ["H_2O", "C1-C-C-C-C-C1", "2H_2 + O_2 -> 2H_2O", '"plain text"',
                    "(R)-C_2H_5OH", "(alpha)-C_6H_12O_6"]:
         assert render(from_model_json(to_model_json(parse_text(source)))) == source
+
+
+def test_structure_reference_ingests_the_molecule():
+    formula = parse_text('@smiles("c1cc[nH]c1")')
+    assert len(formula.nodes) == 1
+    molecule = formula.nodes[0]
+    assert [a.element for a in molecule.nodes if isinstance(a, Atom)] == ["C", "C", "C", "N", "C"]
+
+
+def test_structure_reference_canonical_text_is_the_expanded_form():
+    assert render(parse_text('@smiles("CCO")')) == "C-C-O"
+
+
+def test_structure_reference_keeps_the_attached_form_an_identifier():
+    from asciichem.model import Identifier
+    molecule = parse_text('H_2O @smiles("CCO")').nodes[0]
+    assert any(isinstance(n, Identifier) and n.convention == "smiles"
+               for n in molecule.identifiers)
+
+
+def test_structure_reference_rejects_other_sources():
+    with pytest.raises(ParseError):
+        parse_text('@molfile("CCO")')
+
+
+def test_structure_reference_rejects_dot_components():
+    with pytest.raises(ParseError, match="one connected structure"):
+        parse_text('@smiles("CC.O")')
