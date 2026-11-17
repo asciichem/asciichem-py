@@ -87,16 +87,46 @@ def _apply_properties(lines, atoms):
 
 
 def write_molfile(molecule: Molecule, name: str = "") -> str:
-    atoms, edges = build_graph(molecule)
-    if not edges and len(atoms) > 1:
+    model_atoms, model_edges = build_graph(molecule)
+    if not model_edges and len(model_atoms) > 1:
         raise ParseError("molecule has no bonds - a formula is not a structure")
+
+    # Aromatic carriers lose their bracket H in the identity pipe: the
+    # V2000 H-count column is oracle-ignored (the release engine never
+    # reads it) and the valence derivation does not hand aromatic atoms
+    # their H - a pyrrole's [nH] reads one hydrogen short (the Ruby
+    # transport loss, asciichem-ruby#181). The explicit H atom is the
+    # transport that survives, the same posture as [2H]. Non-aromatic
+    # carriers are untouched: their H derive by valence everywhere, and
+    # the recorded corpus molfiles pin their bytes.
+    atoms = list(model_atoms)
+    edges = list(model_edges)
+    h_carriers: dict[int, tuple[int, int]] = {}
+    base_atoms = len(model_atoms)
+    for index, atom in enumerate(model_atoms):
+        if not atom.aromatic or not atom.hydrogens:
+            continue
+        for nth in range(atom.hydrogens):
+            target = len(atoms)
+            h_carriers[target] = (index, nth)
+            atoms.append(Atom(element="H"))
+            edges.append(Edge(from_=index, to=target, kind="single"))
 
     lines = [name, "  AsciiChem", "",
              f"{len(atoms):3d}{len(edges):3d}  0  0  0  0  0  0  0  0999 V2000"]
 
-    for atom in atoms:
-        lines.append(f"{atom.x2 or 0.0:10.4f}{atom.y2 or 0.0:10.4f}"
-                     f"{atom.z2 or 0.0:10.4f} {atom.element:<3}"
+    for index, atom in enumerate(atoms):
+        carrier = h_carriers.get(index)
+        if carrier is not None:
+            source = model_atoms[carrier[0]]
+            x = (source.x2 or 0.0) + 0.75
+            y = (source.y2 or 0.0) + 0.75 * carrier[1]
+        else:
+            x = atom.x2 or 0.0
+            y = atom.y2 or 0.0
+        z = atom.z2 or 0.0
+        lines.append(f"{x:10.4f}{y:10.4f}"
+                     f"{z:10.4f} {atom.element:<3}"
                      " 0  0  0  0  0  0  0  0  0  0  0  0")
 
     for edge in edges:

@@ -100,6 +100,28 @@ def test_molfile_aromatic_round_trip():
     assert len(again_atoms) == len(atoms)
 
 
+def test_molfile_aromatic_hydrogens_materialize():
+    # The V2000 H-count column is oracle-ignored and the valence
+    # derivation does not hand aromatic atoms their H, so a pyrrole's
+    # [nH] must cross as a real H atom (asciichem-ruby#181).
+    from asciichem.molfile import write_molfile
+    lines = write_molfile(parse_smiles("c1cc[nH]c1")).split("\n")
+    assert lines[3] == "  6  6  0  0  0  0  0  0  0  0999 V2000"
+    atom_lines = lines[4:10]
+    assert len([l for l in atom_lines if l[31:34].strip() == "H"]) == 1
+    assert any(l[31:34].strip() == "N" for l in atom_lines)
+    assert any(l.startswith("  4  6  1  0") for l in lines[10:16])
+
+
+def test_molfile_non_aromatic_hydrogens_stay_off_the_atom_block():
+    # Recorded corpus molfiles pin the alanine bytes: the stereocenter's
+    # H derives by valence in every engine.
+    from asciichem.molfile import write_molfile
+    lines = write_molfile(parse_smiles("N[C@@H](C)C(=O)O")).split("\n")
+    assert lines[3] == "  6  5  0  0  0  0  0  0  0  0999 V2000"
+    assert [l[31:34].strip() for l in lines[4:10]] == ["N", "C", "C", "C", "O", "O"]
+
+
 def test_molfile_rejects_malformed_counts():
     from asciichem.molfile import parse_molfile
     with pytest.raises(ParseError):
