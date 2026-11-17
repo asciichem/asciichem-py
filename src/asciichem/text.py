@@ -3,6 +3,7 @@ parse(s).to_text() == s for canonical s. Port of the reference
 Formatter::Text."""
 from __future__ import annotations
 
+from .kekule import bond_kinds as kekule_bond_kinds
 from .model import (Atom, Bond, Calculation, Crystal, ElectronConfiguration,
                     EmbeddedMath, Formula, Group, Mechanism, Molecule, Node,
                     Reaction, ReactionCascade, Spectrum, Text, ZMatrix,
@@ -31,8 +32,50 @@ def _formula(f: Formula) -> str:
 def _molecule(m: Molecule) -> str:
     prefix = m.coefficient if m.coefficient else ""
     stereo = f"({STEREO_LETTER[m.stereo]})-" if m.stereo else ""
-    body = "".join(render(n) for n in m.nodes)
+    # Aromatic bonds render as their Kekule projection when the ring
+    # admits one (kekule.py); odd rings keep the aromatic glyph (the
+    # spec'd text loss, #188).
+    kinds = kekule_bond_kinds(m)
+    body = _molecule_body(m.nodes, kinds)
     return stereo + prefix + body + _annotations(m)
+
+
+def _molecule_body(nodes, kinds) -> str:
+    out: list[str] = []
+    count = 0
+    pending: Bond | None = None
+
+    def walk(nodes):
+        nonlocal count, pending
+        for node in nodes:
+            if isinstance(node, Atom):
+                if pending is not None and count > 0:
+                    if pending.direction == "up":
+                        out.append("/")
+                    elif pending.direction == "down":
+                        out.append("\\")
+                    else:
+                        key = (count - 1, count)
+                        if key in kinds:
+                            out.append("=" if kinds[key] == "double" else "-")
+                        else:
+                            out.append(pending.ascii)
+                out.append(_atom(node))
+                count += 1
+                pending = None
+            elif isinstance(node, Bond):
+                pending = node
+            elif isinstance(node, Group):
+                out.append(node.open_char)
+                walk(node.nodes)
+                out.append(node.close_char)
+                if node.multiplicity is not None:
+                    out.append(f"_{node.multiplicity}")
+            elif isinstance(node, Molecule):
+                out.append(render(node))
+
+    walk(nodes)
+    return "".join(out)
 
 
 def _annotations(m: Molecule) -> str:
