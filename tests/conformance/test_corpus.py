@@ -153,6 +153,18 @@ def test_smiles_recorded_identity(case):
     assert identity.inchi == case["inchi"], case["id"]
 
 
+# The structure-reference family's recorded text column
+# (asciichem-tests#31): where the canonical text was recorded, the
+# runtime produces exactly that string (cross-runtime text parity of
+# the ingest edge).
+@pytest.mark.parametrize("case", [c for c in fixtures()
+                                  if isinstance(c.get("input"), str)
+                                  and isinstance(c.get("text"), str)],
+                         ids=lambda c: c["id"])
+def test_structure_reference_text(case):
+    assert render(parse_text(case["input"])) == case["text"], case["id"]
+
+
 def molfile_fixtures():
     return [c for c in fixtures() if isinstance(c.get("molfile"), str)]
 
