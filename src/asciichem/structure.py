@@ -38,7 +38,7 @@ def build_graph(molecule: Molecule):
                 index_by_id[id(node)] = index
                 atoms.append(node)
                 if pending is not None and last is not None:
-                    edges.append(Edge(last, index, pending.kind))
+                    edges.append(Edge(last, index, pending.kind, pending.direction))
                 last = index
                 pending = None
             elif isinstance(node, Bond):

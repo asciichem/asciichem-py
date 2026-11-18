@@ -143,6 +143,36 @@ def write_molfile(molecule: Molecule, name: str = "") -> str:
     # centre -> neighbour: TH1 rises (stereo 1), TH2 falls (6). The
     # V2000 atom-parity field is oracle-ignored for 2D input - the
     # wedge is what carries the tetrahedral layer.
+    # Directional bonds draw the E/Z layer: a direction rides a single
+    # bond adjacent to a double bond, and the substituent's SIDE of that
+    # double bond is the drawn information. The layout's arbitrary
+    # placement carries no side semantics (the zigzag draws chains
+    # near-collinear), so each directional substituent is placed
+    # perpendicular to the double-bond axis, anchored at its bond
+    # partner, with the side read against the STRING-ORDERED axis (a to
+    # b) - the chemomer lift's invariant, so ``C/C=C/C`` draws trans
+    # and ``C/C=C\\C`` cis regardless of which end the axis runs from.
+    for edge in edges:
+        if edge.direction is None:
+            continue
+        resolved = _double_bond_axis(edges, edge)
+        if resolved is None:
+            continue
+        axis, p_index, u_index = resolved
+        q_index = axis.to if axis.from_ == p_index else axis.from_
+        a_index, b_index = min(p_index, q_index), max(p_index, q_index)
+        ax, ay = coords[a_index]
+        bx, by = coords[b_index]
+        px, py = coords[p_index]
+        dx, dy = bx - ax, by - ay
+        length = math.sqrt(dx * dx + dy * dy)
+        if length < 1e-9:
+            continue
+        nx, ny = -dy / length, dx / length
+        side = (1.0 if edge.direction == "up" else -1.0) * \
+            (1.0 if u_index > a_index else -1.0)
+        coords[u_index] = (px + nx * length * side, py + ny * length * side)
+
     wedges = {}
     for index, atom in enumerate(atoms):
         if atom.chirality not in ("TH1", "TH2"):
@@ -210,3 +240,18 @@ def _property_line(prefix, pairs):
     for index, value in pairs:
         line += f"{index:4d}{value:4d}"
     return line
+
+
+def _double_bond_axis(edges, single):
+    """The double-bond axis a directional bond borders: which end of
+    the single bond touches a kind-2 bond's atom, with that endpoint,
+    the substituent (the other end), and the double-bond edge."""
+    for atom, other in ((single.from_, single.to), (single.to, single.from_)):
+        for candidate in edges:
+            if candidate.kind == "double" and (
+                (candidate.from_ == atom and candidate.to != other)
+                or (candidate.to == atom and candidate.from_ != other)
+            ):
+                substituent = single.to if single.from_ == atom else single.from_
+                return candidate, atom, substituent
+    return None

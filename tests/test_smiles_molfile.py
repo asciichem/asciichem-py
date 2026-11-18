@@ -1,5 +1,6 @@
 import pytest
 from asciichem.model import ParseError
+from asciichem.molfile import write_molfile
 from asciichem.smiles import parse_smiles, write_smiles
 from asciichem.structure import build_graph
 
@@ -126,3 +127,33 @@ def test_molfile_rejects_malformed_counts():
     from asciichem.molfile import parse_molfile
     with pytest.raises(ParseError):
         parse_molfile("bad\n  x\n\nzzz  0  0  0  0  0  0  0  0999 V2000\nM  END\n")
+
+
+def test_directional_bonds_draw_the_ez_layer():
+    """The substituent's side of the double-bond axis is the drawn
+    information (read against the string-ordered axis - the chemomer
+    lift's invariant). C/C=C/C draws trans, C/C=C\\C cis; the oracle
+    reads the corpus-exact /b signs off these drawings."""
+    def sides(smiles):
+        molfile = write_molfile(parse_smiles(smiles).nodes[0])
+        lines = molfile.split("\n")
+
+        def coordinate(index):
+            return (float(lines[index + 4][0:10]), float(lines[index + 4][10:20]))
+
+        def side(axis_from, axis_to, substituent):
+            ax, ay = coordinate(axis_from)
+            bx, by = coordinate(axis_to)
+            ux, uy = coordinate(substituent)
+            return (bx - ax) * (uy - ay) - (by - ay) * (ux - ax)
+
+        return side(1, 2, 0), side(1, 2, 3)
+
+    e_first, e_second = sides("C/C=C/C")
+    assert e_first * e_second < 0
+    z_first, z_second = sides("C/C=C\\C")
+    assert z_first * z_second > 0
+    f_e_first, f_e_second = sides("F/C=C/F")
+    assert f_e_first * f_e_second < 0
+    f_z_first, f_z_second = sides("F/C=C\\F")
+    assert f_z_first * f_z_second > 0
