@@ -9,8 +9,8 @@ env:
   # Hermetic CI: the corpus and model refs are pinned, never
   # floating. Bump these lines deliberately with each release (the
   # tag carries what changed).
-  CORPUS_REF: v0.18.1
-  MODEL_REF: v0.8.0
+  CORPUS_REF: v0.19.1
+  MODEL_REF: v0.9.0
 
 jobs:
   test:

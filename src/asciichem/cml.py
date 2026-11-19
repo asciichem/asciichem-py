@@ -65,7 +65,7 @@ from leptris import Document, tostring
 from leptris import ParseError as LeptrisParseError
 from leptris import sax
 
-from .model import (Atom, AsciiChemError, Bond, Formula, Group, Molecule,
+from .model import (Adduct, Atom, AsciiChemError, Bond, Formula, Group, Molecule,
                     Node, Reaction, ReactionCascade, ReactionConditions,
                     diagnostic_label)
 from . import text as text_renderer
@@ -104,7 +104,7 @@ ATOM_FIELDS: list[tuple[str, str]] = [
 # reference's TopLevel::HANDLERS).
 TOP_LEVEL_ELEMENTS = ("electronConfiguration", "embeddedMath", "text",
                       "crystal", "spectrum", "calculation", "zmatrix",
-                      "mechanism")
+                      "mechanism", "adduct")
 
 # The per-reaction conditions channel: `aci:conditionsAbove` /
 # `aci:conditionsBelow` attributes on `<reaction>` (the reference's
@@ -343,6 +343,10 @@ def _top_level_payload(node) -> tuple[str, str]:
         return "zmatrix", text_renderer.render(node)
     if isinstance(node, Mechanism):
         return "mechanism", text_renderer.render(node)
+    if isinstance(node, Adduct):
+        # The aci:text channel: the canonical text render re-parses
+        # on read (the round-trip-safe-by-construction pattern).
+        return "adduct", text_renderer.render(node)
     raise CmlError(f"construct has no CML wire representation: "
                    f"{_node_label(node)}")
 

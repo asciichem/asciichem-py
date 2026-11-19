@@ -4,9 +4,10 @@ Formatter::Text."""
 from __future__ import annotations
 
 from .kekule import bond_kinds as kekule_bond_kinds
-from .model import (Atom, Bond, Calculation, Crystal, ElectronConfiguration,
+from .model import (Adduct, Atom, Bond, Calculation, Crystal, ElectronConfiguration,
                     EmbeddedMath, Formula, Group, Mechanism, Molecule, Node,
                     Reaction, ReactionCascade, Spectrum, Text, ZMatrix,
+                    Adduct,
                     ReactionConditions, STATE_GLYPHS, STEREO_LETTER)
 
 _FORMATTERS = {}
@@ -26,6 +27,11 @@ def render(node: Node) -> str:
 @_formats(Formula)
 def _formula(f: Formula) -> str:
     return " ".join(render(n) for n in f.nodes)
+
+
+@_formats(Adduct)
+def _adduct(a: Adduct) -> str:
+    return " . ".join(render(c) for c in a.components)
 
 
 @_formats(Molecule)
