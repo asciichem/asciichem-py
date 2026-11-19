@@ -160,86 +160,168 @@ def place_graph(graph: LayoutGraph) -> list[Point]:
         if path is not None and len(path) >= 3:
             cycles.append(path)
 
-    # Place rings first: each ring is a regular polygon. A ring with
-    # an already-placed member anchors on it (fused look); a ring in
-    # a new component starts at the next free center to the right.
+    # Rings first, in source order. Each cycle is placed free
+    # (nothing placed yet), fused (two or more atoms already placed —
+    # fit the polygon to them), or anchored (one placed atom — orient
+    # away from the placed region).
     free_center_x = 0.0
     for cycle in cycles:
-        anchor_index = next((i for i, m in enumerate(cycle) if positions[m] is not None), -1)
-        radius = _polygon_radius(len(cycle))
-        if anchor_index == -1:
-            center = Point(free_center_x, 0.0)
-            _place_polygon(cycle, center, radius, 0.0, positions)
-            free_center_x += radius * 2 + BOND_LENGTH
+        anchored = [m for m in cycle if positions[m] is not None]
+        if not anchored:
+            free_center_x = _place_free_cycle(cycle, positions, free_center_x)
+        elif len(anchored) >= 2:
+            _place_fused_cycle(cycle, positions)
         else:
-            anchor = cycle[anchor_index]
-            anchor_pos = positions[anchor]
-            assert anchor_pos is not None
-            # Direction pointing away from any already-placed neighbor
-            # of the anchor; the polygon center sits opposite it.
-            outward = -math.inf
-            for neighbor in _neighbors(graph, anchor):
-                npos = positions[neighbor]
-                if npos is not None:
-                    outward = math.atan2(anchor_pos.y - npos.y, anchor_pos.x - npos.x)
-                    break
-            vertex_angle = _angle_of_member(len(cycle), anchor_index)
-            center_angle = vertex_angle + math.pi if outward == -math.inf else outward
-            center = Point(
-                anchor_pos.x + radius * math.cos(center_angle),
-                anchor_pos.y + radius * math.sin(center_angle),
-            )
-            # Rotate the polygon so the anchor lands on its position.
-            _place_polygon(cycle, center, radius, center_angle - vertex_angle, positions)
+            _place_anchored_cycle(cycle, positions)
 
     # Grow chains breadth-first from every placed atom (zigzag), then
     # from any still-unplaced atom (new component at origin baseline).
     for i in range(len(graph.atoms)):
         if positions[i] is None:
             continue
-        _grow(i, positions, graph, {i})
+        _grow(i, positions, graph)
     for i in range(len(graph.atoms)):
         if positions[i] is not None:
             continue
         positions[i] = Point(free_center_x, 0.0)
         free_center_x += BOND_LENGTH
-        _grow(i, positions, graph, {i})
+        _grow(i, positions, graph)
 
     return [p for p in positions if p is not None]
+
+
+def _place_free_cycle(
+    cycle: list[int],
+    positions: list[Point | None],
+    free_center_x: float,
+) -> float:
+    radius = _polygon_radius(len(cycle))
+    _place_polygon(cycle, Point(free_center_x, 0.0), radius, 0.0, positions)
+    return free_center_x + radius * 2 + BOND_LENGTH
+
+
+def _place_fused_cycle(cycle: list[int], positions: list[Point | None]) -> None:
+    """Fused on shared atoms: derive the rigid transform (rotation +
+    translation) that maps the ideal polygon's two placed members onto
+    their laid-out positions, then fill only the unplaced members.
+    Placed atoms never move — the first ring keeps its geometry."""
+    a = next(m for m in cycle if positions[m] is not None)
+    b = next(m for m in cycle if positions[m] is not None and m != a)
+    ia = cycle.index(a)
+    ib = cycle.index(b)
+    ideal_a = _ideal_point(len(cycle), ia, 0.0)
+    ideal_b = _ideal_point(len(cycle), ib, 0.0)
+    pos_a, pos_b = positions[a], positions[b]
+    assert pos_a is not None and pos_b is not None
+    theta = math.atan2(pos_b.y - pos_a.y, pos_b.x - pos_a.x) - math.atan2(
+        ideal_b.y - ideal_a.y, ideal_b.x - ideal_a.x
+    )
+    cos, sin = math.cos(theta), math.sin(theta)
+    for i, member in enumerate(cycle):
+        if positions[member] is not None:
+            continue
+        ideal = _ideal_point(len(cycle), i, 0.0)
+        dx = ideal.x - ideal_a.x
+        dy = ideal.y - ideal_a.y
+        positions[member] = Point(
+            pos_a.x + dx * cos - dy * sin,
+            pos_a.y + dx * sin + dy * cos,
+        )
+
+
+def _place_anchored_cycle(cycle: list[int], positions: list[Point | None]) -> None:
+    """One placed atom: centre the polygon outward, away from the
+    centroid of everything already placed (a spiro centre must not
+    fold the new ring back onto the old one). The anchor sits opposite
+    the centre direction, so the shift must put the anchor's own
+    vertex there (+π)."""
+    anchor = next(m for m in cycle if positions[m] is not None)
+    anchor_index = cycle.index(anchor)
+    anchor_pos = positions[anchor]
+    assert anchor_pos is not None
+    vertex_angle = _angle_of_member(len(cycle), anchor_index)
+    placed = [p for p in positions if p is not None]
+    if len(placed) >= 2:
+        centroid = Point(
+            sum(p.x for p in placed) / len(placed),
+            sum(p.y for p in placed) / len(placed),
+        )
+        center_angle = math.atan2(anchor_pos.y - centroid.y, anchor_pos.x - centroid.x)
+    else:
+        center_angle = vertex_angle
+    shift = center_angle + math.pi - vertex_angle
+    radius = _polygon_radius(len(cycle))
+    center = Point(
+        anchor_pos.x + radius * math.cos(center_angle),
+        anchor_pos.y + radius * math.sin(center_angle),
+    )
+    for i, member in enumerate(cycle):
+        if positions[member] is not None:
+            continue
+        ideal = _ideal_point(len(cycle), i, shift)
+        positions[member] = Point(center.x + ideal.x, center.y + ideal.y)
 
 
 def _grow(
     start: int,
     positions: list[Point | None],
     graph: LayoutGraph,
-    visited: set[int],
 ) -> None:
+    # Zigzag growth: each generation turns the opposite way from its
+    # parent, so chains alternate instead of curling. Tracked per atom
+    # as [parent, incoming_angle, turn].
+    start_pos = positions[start]
+    assert start_pos is not None
+    visited: dict[int, tuple[int | None, float, int]] = {
+        start: (None, math.atan2(start_pos.y, start_pos.x), -1)
+    }
     queue: deque[int] = deque([start])
     while queue:
         current = queue.popleft()
         current_pos = positions[current]
         if current_pos is None:
             continue
-        # Direction the chain is travelling: away from the origin of
-        # the component (0,0) — keeps zigzags deterministic and
-        # horizontal-ish.
-        heading = math.atan2(-current_pos.y, current_pos.x)
+        incoming_angle = visited[current][1]
         children = [
             n
             for n in _neighbors(graph, current)
             if n not in visited and positions[n] is None
         ]
-        for i, child in enumerate(children):
+        for child in children:
             if child in visited:
                 continue
-            spread = -math.pi / 3 if i == 0 else math.pi / 3 if i == 1 else 0.0
-            angle = heading + spread
-            positions[child] = Point(
-                current_pos.x + BOND_LENGTH * math.cos(angle),
-                current_pos.y + BOND_LENGTH * math.sin(angle),
-            )
-            visited.add(child)
+            turn = -visited[current][2]
+            angle = incoming_angle + turn * (math.pi / 3)
+            positions[child] = _clear_position(current_pos, angle, positions)
+            visited[child] = (current, angle, turn)
             queue.append(child)
+
+
+def _clear_position(
+    from_pos: Point,
+    angle: float,
+    positions: list[Point | None],
+) -> Point:
+    """Try the preferred spot, then spread out; if the preferred spot
+    is occupied (another substituent, a ring atom), fall back to the
+    candidate farthest from any placed atom. Deterministic: first best
+    wins ties."""
+    candidates = [
+        Point(
+            from_pos.x + BOND_LENGTH * math.cos(angle + spread),
+            from_pos.y + BOND_LENGTH * math.sin(angle + spread),
+        )
+        for spread in (0.0, -math.pi / 3, math.pi / 3, -2 * math.pi / 3, 2 * math.pi / 3, math.pi)
+    ]
+    occupied = [p for p in positions if p is not None]
+    for candidate in candidates:
+        if all(_distance(candidate, other) >= BOND_LENGTH / 2 for other in occupied):
+            return candidate
+    return max(candidates, key=lambda candidate: sum(_distance(candidate, o) for o in occupied))
+
+
+def _distance(a: Point, b: Point) -> float:
+    return math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
 
 
 def _polygon_radius(sides: int) -> float:
@@ -264,6 +346,13 @@ def _place_polygon(
             center.x + radius * math.cos(angle),
             center.y + radius * math.sin(angle),
         )
+
+
+def _ideal_point(sides: int, member_index: int, shift: float) -> Point:
+    """The ideal polygon vertex position relative to the centre."""
+    radius = _polygon_radius(sides)
+    angle = _angle_of_member(sides, member_index) + shift
+    return Point(radius * math.cos(angle), radius * math.sin(angle))
 
 
 def layout_molecule(molecule: Molecule) -> tuple[LayoutGraph, list[Point]]:
