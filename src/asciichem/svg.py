@@ -390,6 +390,8 @@ def _atom_segments(atom: Atom) -> list[_Segment]:
         segments.append(_seg(":" * atom.lone_pairs, -6.0))
     if atom.isotope is not None:
         segments.append(_seg(atom.isotope, -6.0))
+    if atom.atomic_number is not None:
+        segments.append(_seg(atom.atomic_number, -6.0))
     segments.append(_seg(atom.element, 0.0))
     if atom.subscript is not None:
         segments.append(_seg(atom.subscript, 5.0))

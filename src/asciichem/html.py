@@ -75,6 +75,8 @@ def _atom(a: Atom) -> str:
     parts = []
     if a.isotope is not None:
         parts.append(f"<sup>{escape(a.isotope)}</sup>")
+    if a.atomic_number is not None:
+        parts.append(f"<sub>{escape(a.atomic_number)}</sub>")
     parts.append(escape(a.element))
     if a.subscript is not None:
         parts.append(f"<sub>{escape(a.subscript)}</sub>")

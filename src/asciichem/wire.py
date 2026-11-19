@@ -44,6 +44,8 @@ def to_wire(node) -> dict:
         wire = {"type": "atom", "element": node.element}
         if (isotope := _digits_or_none(node.isotope)) is not None:
             wire["isotope"] = isotope
+        if (atomic_number := _digits_or_none(node.atomic_number)) is not None:
+            wire["atomicNumber"] = atomic_number
         if node.charge is not None:
             wire["charge"] = node.charge
         if (subscript := _digits_or_none(node.subscript)) is not None:
@@ -348,6 +350,7 @@ def _from_node(wire) -> object:
         return Formula([_from_node(n) for n in wire.get("nodes", [])])
     if kind == "atom":
         return Atom(element=wire["element"], isotope=wire.get("isotope"),
+                    atomic_number=wire.get("atomicNumber"),
                     subscript=wire.get("subscript"),
                     superscript=wire.get("superscript"), charge=wire.get("charge"),
                     oxidation_state=wire.get("oxidationState"),

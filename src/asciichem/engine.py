@@ -47,7 +47,7 @@ ARTIFACT_PATH = Path(__file__).parent / "parg" / "asciichem.json"
 
 # Version the vendored artifact was built from; the load fails loudly
 # on drift so the engine never runs a stale grammar.
-PARG_GRAMMAR_VERSION = "0.7.0"
+PARG_GRAMMAR_VERSION = "0.8.0"
 
 ARROW_TOKENS = {"<=>": "equilibrium", "<->": "resonance", "->": "forward", "<-": "reverse"}
 STEREO = {"alpha": "alpha", "beta": "beta", "R": "R", "S": "S", "E": "E", "Z": "Z",
@@ -319,6 +319,7 @@ def build_atom(attrs: dict) -> Atom:
     return Atom(
         element=attrs.get("element") or "",
         isotope=strip_marker(attrs.get("isotope")),
+        atomic_number=strip_marker(attrs.get("atomic_number")),
         subscript=strip_marker(attrs.get("subscript"), "_"),
         superscript=None if (charge or oxidation) else sup,
         charge=charge,
