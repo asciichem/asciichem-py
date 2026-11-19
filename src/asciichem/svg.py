@@ -71,7 +71,8 @@ def render_structural_svg(formula) -> str:
     else:
         min_x, min_y, max_x, max_y = 0.0, 0.0, 40.0, 40.0
     inner = "\n".join(
-        f'    <svg x="{_fmt(x - min_x)}" y="{_fmt(y - min_y)}" width="{_fmt(w)}" height="{_fmt(h)}" overflow="visible">{_strip_outer(svg)}</svg>'
+        f'    <svg x="{_fmt(x - min_x)}" y="{_fmt(y - min_y)}" width="{_fmt(w)}" height="{_fmt(h)}" '
+        f'viewBox="{_fmt(x)} {_fmt(y)} {_fmt(w)} {_fmt(h)}" overflow="visible">{_strip_outer(svg)}</svg>'
         for svg, (x, y, w, h) in zip(children, boxes)
     )
     width = max(max_x - min_x, 40.0)
