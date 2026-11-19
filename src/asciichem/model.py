@@ -38,6 +38,7 @@ class ParseError(AsciiChemError):
 class Atom:
     element: str
     isotope: Optional[str] = None
+    atomic_number: Optional[str] = None
     subscript: Optional[str] = None
     superscript: Optional[str] = None
     charge: Optional[str] = None

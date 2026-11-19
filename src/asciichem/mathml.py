@@ -124,9 +124,14 @@ def _molecule(m: Molecule) -> _El:
 def _atom(atom: Atom) -> _El:
     base = _mi(atom.element)
     if atom.isotope is not None:
+        # The prescript pair is (left-subscript, left-superscript):
+        # the atomic number sits under the mass number - none when
+        # absent.
         base = _el("mmultiscripts", None,
                    [base, _el("none"), _el("none"), _el("mprescripts"),
-                    _el("none"), _mn(atom.isotope)])
+                    _mn(atom.atomic_number) if atom.atomic_number is not None
+                    else _el("none"),
+                    _mn(atom.isotope)])
     if atom.lone_pairs is not None:
         base = _el("mrow", None, [_mtext(":" * atom.lone_pairs), base])
     base = _wrap_sub_and_super(base, atom)

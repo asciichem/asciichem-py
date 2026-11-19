@@ -114,6 +114,8 @@ def _atom(a: Atom) -> str:
         parts.append(":" * a.lone_pairs)
     if a.isotope is not None:
         parts.append("^" + a.isotope)
+    if a.atomic_number is not None:
+        parts.append("_" + a.atomic_number)
     parts.append(a.element)
     if a.subscript is not None:
         parts.append("_" + a.subscript)

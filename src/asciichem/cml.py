@@ -93,6 +93,7 @@ class CmlError(AsciiChemError):
 # Atom-attribute channel: model field name -> wire attribute name
 # (without the `aci:` prefix), in wire order.
 ATOM_FIELDS: list[tuple[str, str]] = [
+    ("atomic_number", "atomicNumber"),
     ("oxidation_state", "oxidationState"),
     ("lone_pairs", "lonePairs"),
     ("radical_electrons", "radicalElectrons"),
@@ -836,6 +837,7 @@ def _read_atom(element: _XNode) -> _RestoredAtom:
         atom=Atom(
             element=element_type,
             isotope=element.attr("isotope"),
+            atomic_number=element.attr_ns(ACI_NAMESPACE, "atomicNumber"),
             subscript=subscript,
             charge=element.attr("formalCharge"),
             oxidation_state=element.attr_ns(ACI_NAMESPACE, "oxidationState"),
