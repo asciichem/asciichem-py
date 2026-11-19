@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from .model import (Atom, Bond, Calculation, Crystal, ElectronConfiguration,
+from .model import (Adduct,Atom, Bond, Calculation, Crystal, ElectronConfiguration,
                     EmbeddedMath, Formula, Group, Mechanism, Molecule, Node,
                     Reaction, ReactionCascade, Spectrum, Text, ZMatrix,
                     STEREO_LETTER, AsciiChemError)
@@ -107,6 +107,27 @@ def _formula(f: Formula) -> _El:
 
 @_formats(Molecule)
 def _molecule(m: Molecule) -> _El:
+    children = []
+    if m.stereo:
+        children.append(_mtext(f"({STEREO_LETTER[m.stereo]})-"))
+    if m.coefficient is not None:
+        children.append(_mn(m.coefficient))
+    children.extend(render(n) for n in m.nodes)
+    if m.state is not None:
+        children.append(_mo("↓" if m.state == "precipitate" else "↑"))
+    return _el("mrow", None, children)
+
+
+@_formats(Adduct)
+def _adduct(a: Adduct) -> _El:
+    children: list = []
+    for index, component in enumerate(a.components):
+        if index > 0:
+            children.append(_mo("·"))
+        children.append(render(component))
+    return _el("mrow", None, children)
+
+
     children = []
     if m.stereo:
         children.append(_mtext(f"({STEREO_LETTER[m.stereo]})-"))

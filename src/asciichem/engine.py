@@ -33,7 +33,8 @@ from pathlib import Path
 
 from parsanol import ParseFailed, PargArtifact
 
-from .model import (Atom, Bond, Calculation, CalculationProperty, Crystal,
+from .model import (Adduct, Atom, Bond, Calculation, CalculationProperty, Crystal,
+                    Adduct,
                     ElectronConfiguration, EmbeddedMath, Formula, Group,
                     Identifier, Mechanism, MechanismFlow, MechanismStep,
                     Molecule, Name, ParseError, Reaction, ReactionCascade,
@@ -47,7 +48,7 @@ ARTIFACT_PATH = Path(__file__).parent / "parg" / "asciichem.json"
 
 # Version the vendored artifact was built from; the load fails loudly
 # on drift so the engine never runs a stale grammar.
-PARG_GRAMMAR_VERSION = "0.8.0"
+PARG_GRAMMAR_VERSION = "0.9.0"
 
 ARROW_TOKENS = {"<=>": "equilibrium", "<->": "resonance", "->": "forward", "<-": "reverse"}
 STEREO = {"alpha": "alpha", "beta": "beta", "R": "R", "S": "S", "E": "E", "Z": "Z",
@@ -373,6 +374,16 @@ def build_structure_reference(reference: dict):
     return nodes[0]
 
 
+def build_adduct(data: dict) -> Adduct:
+    """The middle-dot connective (grammar v0.9.0): the lead molecule
+    rides under the `molecule` key; each component carries its own."""
+    lead = build_molecule(data["molecule"])
+    components = [lead]
+    for component in data.get("components") or []:
+        components.append(build_molecule(component["molecule"]))
+    return Adduct(components=components)
+
+
 def build_molecule(mol: dict) -> Molecule:
     stereo = STEREO.get(mol["stereo"]) if "stereo" in mol else None
     coefficient = mol["coefficient"].get("value") if "coefficient" in mol else None
@@ -495,6 +506,8 @@ def build_node(node: dict):
                                else None)  # bare "mechanism"
     if "open_bracket" in node:
         return build_group(node)
+    if "adduct" in node:
+        return build_adduct(node["adduct"])
     if "units" in node or "stereo" in node or "coefficient" in node or "state" in node:
         return build_molecule(node)
     if "math_source" in node:

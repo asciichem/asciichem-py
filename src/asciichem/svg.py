@@ -9,7 +9,7 @@ import math
 from dataclasses import dataclass
 
 from .layout import Point, layout_molecule, unclosed_ring_atoms
-from .model import (
+from .model import (Adduct,
     Atom,
     Bond,
     EmbeddedMath,
@@ -331,6 +331,13 @@ def _segments_for(node: Node) -> list[_Segment]:
         if node.state is not None:
             segments.append(_seg(" ", 0.0))
             segments.append(_seg("↓" if node.state == "precipitate" else "↑", 0.0))
+        return segments
+    if isinstance(node, Adduct):
+        segments: list[_Segment] = []
+        for index, component in enumerate(node.components):
+            if index > 0:
+                segments.append(_seg(" · ", 0.0))
+            segments.extend(_segments_for(component))
         return segments
     if isinstance(node, Bond):
         return [_seg(_BOND_GLYPH[node.kind], 0.0)]

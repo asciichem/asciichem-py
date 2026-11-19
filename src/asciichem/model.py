@@ -192,6 +192,15 @@ CONDITION_ROLE_PREFIXES = {
 }
 
 
+
+@dataclass
+class Adduct:
+    """The middle-dot connective between molecules at the formula
+    level (grammar v0.9.0 - CuSO4 . 5H2O hydrates). N-ary: the
+    components map one-to-one onto the InChI multi-component layers;
+    each component's coefficient carries its multiplicity."""
+
+    components: list = field(default_factory=list)
 @dataclass
 class ConditionEntry:
     role: Optional[str]

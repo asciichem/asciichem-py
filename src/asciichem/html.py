@@ -18,7 +18,7 @@ characters only; model content is plain text (digits, element
 symbols, condition text)."""
 from __future__ import annotations
 
-from .model import (Atom, Bond, Calculation, Crystal, ElectronConfiguration,
+from .model import (Adduct,Atom, Bond, Calculation, Crystal, ElectronConfiguration,
                     EmbeddedMath, Formula, Group, Mechanism, Molecule, Node,
                     Reaction, ReactionCascade, Spectrum, Text, ZMatrix,
                     STEREO_LETTER)
@@ -62,6 +62,19 @@ def _formula(f: Formula) -> str:
 
 @_formats(Molecule)
 def _molecule(m: Molecule) -> str:
+    prefix = escape(m.coefficient) if m.coefficient else ""
+    stereo = f"({escape(STEREO_LETTER[m.stereo])})-" if m.stereo else ""
+    body = "".join(render(n) for n in m.nodes)
+    # The phase arrow as its HTML entity.
+    state = {"precipitate": "&darr;", "gas": "&uarr;"}.get(m.state, "")
+    return f"{stereo}{prefix}{body}{state}"
+
+
+@_formats(Adduct)
+def _adduct(a: Adduct) -> str:
+    return "&middot;".join(render(c) for c in a.components)
+
+
     prefix = escape(m.coefficient) if m.coefficient else ""
     stereo = f"({escape(STEREO_LETTER[m.stereo])})-" if m.stereo else ""
     body = "".join(render(n) for n in m.nodes)

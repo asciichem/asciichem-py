@@ -8,7 +8,7 @@ import json
 import re
 from typing import Optional
 
-from .model import (Atom, Bond, Calculation, Crystal, ElectronConfiguration,
+from .model import (Adduct, Atom, Bond, Calculation, Crystal, ElectronConfiguration,
                     EmbeddedMath, Formula, Group, Mechanism, Molecule, Name,
                     ParseError, Reaction, ReactionCascade, ReactionConditions,
                     Spectrum, Text, ZMatrix)
@@ -27,6 +27,11 @@ def to_model_json(node, indent=None) -> str:
 def to_wire(node) -> dict:
     if isinstance(node, Formula):
         return {"type": "formula", "nodes": [to_wire(n) for n in node.nodes]}
+    if isinstance(node, Adduct):
+        return {
+            "type": "adduct",
+            "components": [to_wire(c) for c in node.components],
+        }
     if isinstance(node, Molecule):
         wire = {"type": "molecule", "nodes": [to_wire(n) for n in node.nodes]}
         if (coefficient := _digits_or_none(node.coefficient)) is not None:
@@ -365,6 +370,8 @@ def _from_node(wire) -> object:
         return Group([_from_node(n) for n in wire.get("nodes", [])],
                      multiplicity=wire.get("multiplicity"),
                      bracket=wire.get("bracket", "paren"))
+    if kind == "adduct":
+        return Adduct(components=[_from_node(n) for n in wire.get("components", [])])
     if kind == "molecule":
         molecule = Molecule([_from_node(n) for n in wire.get("nodes", [])],
                             coefficient=wire.get("coefficient"),
