@@ -21,6 +21,9 @@ ARROW_ASCII = {"forward": "->", "reverse": "<-", "equilibrium": "<=>", "resonanc
 ARROW_ENTITY = {"forward": "→", "reverse": "←", "equilibrium": "⇌", "resonance": "↔"}
 BRACKETS = {"paren": "()", "square": "[]", "brace": "{}"}
 STEREO_LETTER = {"R": "R", "S": "S", "E": "E", "Z": "Z", "alpha": "alpha", "beta": "beta"}
+# The authored glyph for a semantic state: the round-trip contract
+# renders what the grammar reads, never the typeset arrow.
+STATE_GLYPHS = {"precipitate": "v", "gas": "^"}
 
 
 class AsciiChemError(Exception):
@@ -107,6 +110,9 @@ class Molecule:
     nodes: list
     coefficient: Optional[str] = None
     stereo: Optional[str] = None
+    # The molecule-level state mark (grammar v0.7.0): "precipitate"
+    # (AgCl v, typeset as the down arrow) or "gas" (AgCl ^, up).
+    state: Optional[str] = None
     names: list = field(default_factory=list)
     identifiers: list = field(default_factory=list)
     title: Optional[str] = None

@@ -327,6 +327,10 @@ def _segments_for(node: Node) -> list[_Segment]:
             segments.append(_seg(node.coefficient, 0.0))
         for child in node.nodes:
             segments.extend(_segments_for(child))
+        # The unicode phase arrow, the glyph MathML typesets.
+        if node.state is not None:
+            segments.append(_seg(" ", 0.0))
+            segments.append(_seg("↓" if node.state == "precipitate" else "↑", 0.0))
         return segments
     if isinstance(node, Bond):
         return [_seg(_BOND_GLYPH[node.kind], 0.0)]

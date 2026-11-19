@@ -113,6 +113,10 @@ def _molecule(m: Molecule) -> _El:
     if m.coefficient is not None:
         children.append(_mn(m.coefficient))
     children.extend(render(n) for n in m.nodes)
+    # The mhchem phase arrow after the formula: precipitate down,
+    # gas up.
+    if m.state is not None:
+        children.append(_mo("↓" if m.state == "precipitate" else "↑"))
     return _el("mrow", None, children)
 
 

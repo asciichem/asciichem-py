@@ -65,7 +65,9 @@ def _molecule(m: Molecule) -> str:
     prefix = escape(m.coefficient) if m.coefficient else ""
     stereo = f"({escape(STEREO_LETTER[m.stereo])})-" if m.stereo else ""
     body = "".join(render(n) for n in m.nodes)
-    return f"{stereo}{prefix}{body}"
+    # The phase arrow as its HTML entity.
+    state = {"precipitate": "&darr;", "gas": "&uarr;"}.get(m.state, "")
+    return f"{stereo}{prefix}{body}{state}"
 
 
 @_formats(Atom)

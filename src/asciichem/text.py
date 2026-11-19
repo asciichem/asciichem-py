@@ -7,7 +7,7 @@ from .kekule import bond_kinds as kekule_bond_kinds
 from .model import (Atom, Bond, Calculation, Crystal, ElectronConfiguration,
                     EmbeddedMath, Formula, Group, Mechanism, Molecule, Node,
                     Reaction, ReactionCascade, Spectrum, Text, ZMatrix,
-                    ReactionConditions, STEREO_LETTER)
+                    ReactionConditions, STATE_GLYPHS, STEREO_LETTER)
 
 _FORMATTERS = {}
 
@@ -37,7 +37,14 @@ def _molecule(m: Molecule) -> str:
     # spec'd text loss, #188).
     kinds = kekule_bond_kinds(m)
     body = _molecule_body(m.nodes, kinds)
-    return stereo + prefix + body + _annotations(m)
+    return stereo + prefix + body + _state_mark(m) + _annotations(m)
+
+
+def _state_mark(m: Molecule) -> str:
+    """The authored phase mark, whitespace-separated: `AgCl v` /
+    `AgCl ^`. The round-trip contract renders the glyph the grammar
+    reads, never the typeset arrow."""
+    return f" {STATE_GLYPHS[m.state]}" if m.state else ""
 
 
 def _molecule_body(nodes, kinds) -> str:
