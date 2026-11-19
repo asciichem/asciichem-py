@@ -47,11 +47,15 @@ ARTIFACT_PATH = Path(__file__).parent / "parg" / "asciichem.json"
 
 # Version the vendored artifact was built from; the load fails loudly
 # on drift so the engine never runs a stale grammar.
-PARG_GRAMMAR_VERSION = "0.6.0"
+PARG_GRAMMAR_VERSION = "0.7.0"
 
 ARROW_TOKENS = {"<=>": "equilibrium", "<->": "resonance", "->": "forward", "<-": "reverse"}
 STEREO = {"alpha": "alpha", "beta": "beta", "R": "R", "S": "S", "E": "E", "Z": "Z",
           "α": "alpha", "β": "beta", "a": "alpha", "b": "beta"}
+
+# The molecule-level state mark (grammar v0.7.0): the authored glyph
+# maps to the semantic word the model carries.
+STATES = {"v": "precipitate", "^": "gas"}
 IDENTIFIER_TYPES = {"inchi", "smiles", "cas", "iupac", "cid", "chebi"}
 BOND_KINDS = {"direction_up": ("single", "up"), "direction_down": ("single", "down"),
               "quadruple": ("quadruple", None), "wedge": ("wedge", None),
@@ -371,8 +375,11 @@ def build_structure_reference(reference: dict):
 def build_molecule(mol: dict) -> Molecule:
     stereo = STEREO.get(mol["stereo"]) if "stereo" in mol else None
     coefficient = mol["coefficient"].get("value") if "coefficient" in mol else None
+    # The molecule-level state mark (grammar v0.7.0): the authored
+    # glyph maps to the semantic word the model carries.
+    state = STATES[mol["state"]] if "state" in mol else None
     units = [build_unit(unit) for unit in mol.get("units") or []]
-    return Molecule(nodes=units, coefficient=coefficient, stereo=stereo)
+    return Molecule(nodes=units, coefficient=coefficient, stereo=stereo, state=state)
 
 
 def build_group(group: dict) -> Group:
@@ -487,7 +494,7 @@ def build_node(node: dict):
                                else None)  # bare "mechanism"
     if "open_bracket" in node:
         return build_group(node)
-    if "units" in node or "stereo" in node or "coefficient" in node:
+    if "units" in node or "stereo" in node or "coefficient" in node or "state" in node:
         return build_molecule(node)
     if "math_source" in node:
         return EmbeddedMath(node["math_source"])

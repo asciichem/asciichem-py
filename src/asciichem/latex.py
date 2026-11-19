@@ -95,9 +95,11 @@ def _molecule(m: Molecule) -> str:
     prefix = "" if m.coefficient is None or m.coefficient == "" else str(m.coefficient)
     stereo = f"({STEREO_LETTER[m.stereo]})-" if m.stereo else ""
     body = "".join(render(n) for n in m.nodes)
+    # mhchem's own output form for the phase mark.
+    state = {"precipitate": "\\downarrow", "gas": "\\uparrow"}.get(m.state, "")
     if _inside_ce:
-        return f"{stereo}{prefix}{body}"
-    return f"\\ce{{{stereo}{prefix}{body}}}"
+        return f"{stereo}{prefix}{body}{state}"
+    return f"\\ce{{{stereo}{prefix}{body}{state}}}"
 
 
 @_formats(Atom)

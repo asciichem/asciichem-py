@@ -229,6 +229,7 @@ class _WireGroup:
 @dataclasses.dataclass
 class _MoleculeRecord:
     coefficient: Optional[str]
+    state: Optional[str]
     atoms: list
     bonds: list
     groups: list
@@ -352,9 +353,10 @@ def _walk_molecule(ids: _Ids, molecule: Molecule) -> tuple[_MoleculeRecord, bool
     walker = _MoleculeWalker(ids)
     walker.walk_nodes(molecule.nodes, None)
     walker.emit_ring_bonds()
-    extensions = bool(walker.groups) or any(
+    extensions = bool(walker.groups) or bool(molecule.state) or any(
         atom.extensions for atom in walker.atoms)
     record = _MoleculeRecord(coefficient=molecule.coefficient,
+                             state=molecule.state,
                              atoms=walker.atoms, bonds=walker.bonds,
                              groups=walker.groups)
     return record, extensions
@@ -494,6 +496,10 @@ def _emit_molecule(parent, ids: _Ids, record: _MoleculeRecord) -> None:
     total = _total_formal_charge(record.atoms)
     if total is not None:
         element.set("formalCharge", total)
+    # The molecule-level state rides aci:state (the same posture as
+    # the other molecule extensions).
+    if record.state is not None:
+        element.set(f"{ACI_PREFIX}:state", record.state)
     if record.atoms:
         array = element.create_child("atomArray")
         for atom in record.atoms:
@@ -788,7 +794,11 @@ def _read_molecule(element: _XNode) -> Molecule:
         elif child.local == "bondArray":
             wire_bonds.extend(_read_bond(bond)
                               for bond in child.children_named("bond"))
-    molecule = Molecule(nodes=[], coefficient=coefficient)
+    # The state side-channel: the semantic word on aci:state. Unknown
+    # values are ignored (forward compatibility).
+    raw_state = element.attr_ns(ACI_NAMESPACE, "state")
+    state = raw_state if raw_state in ("precipitate", "gas") else None
+    molecule = Molecule(nodes=[], coefficient=coefficient, state=state)
     _rebuild_atoms_and_bonds(molecule, wire_atoms, wire_bonds)
     _rebuild_groups(molecule, groups)
     return molecule
