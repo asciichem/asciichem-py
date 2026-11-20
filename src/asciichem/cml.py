@@ -98,6 +98,9 @@ ATOM_FIELDS: list[tuple[str, str]] = [
     ("lone_pairs", "lonePairs"),
     ("radical_electrons", "radicalElectrons"),
     ("ring_closures", "ringClosures"),
+    # The SMILES parity mark rides as stored TH1/TH2 (the wire carries
+    # the mark, not derived R/S).
+    ("chirality", "atomParity"),
 ]
 
 # Top-level channel element names (the registry order follows the
@@ -849,6 +852,7 @@ def _read_atom(element: _XNode) -> _RestoredAtom:
             radical_electrons=(_lewis_count(radical)
                                if radical is not None else None),
             ring_closures=element.attr_ns(ACI_NAMESPACE, "ringClosures"),
+            chirality=element.attr_ns(ACI_NAMESPACE, "atomParity"),
         ))
 
 
@@ -890,20 +894,33 @@ def _rebuild_atoms_and_bonds(molecule: Molecule, wire_atoms: list,
     def position(id_: str) -> Optional[int]:
         return ids.index(id_) if id_ in ids else None
 
+    # Digit pairing is the ring-transport signal (aci:ringClosures on
+    # both endpoints — the digits restore onto the atoms and re-spell
+    # the bond). Every other wire bond renders positionally, INCLUDING
+    # continuation bonds whose endpoints sit across a group gap in the
+    # branch-projection shape — the positional-gap guess dropped those.
+    digits_by_id = {}
+    for restored in wire_atoms:
+        if restored.id is not None and restored.atom.ring_closures is not None:
+            digits_by_id[restored.id] = restored.atom.ring_closures
+
+    def shares_digit(a: str, b: str) -> bool:
+        first = set(digits_by_id.get(a, ""))
+        second = set(digits_by_id.get(b, ""))
+        return bool(first & second)
+
     placed = []
     for bond in wire_bonds:
         positions = sorted(p for p in (position(ref) for ref in bond.refs)
                            if p is not None)
         later = positions[-1] if positions else 0
-        span = (positions[-1] - positions[0]) if len(positions) >= 2 else 0
-        placed.append((bond, later, span))
+        ring = len(bond.refs) == 2 and shares_digit(bond.refs[0], bond.refs[1])
+        placed.append((bond, later, ring))
     # Descending later position so earlier insertions don't shift the
     # pending ones.
     placed.sort(key=lambda entry: entry[1], reverse=True)
-    for bond, later, span in placed:
-        # A ring bond connects non-adjacent atoms; its endpoints span
-        # a gap, and the aci:ringClosures digits re-spell it.
-        if span > 1:
+    for bond, later, ring in placed:
+        if ring:
             continue
         nodes.insert(later, Bond(kind=_kind_from_order(bond.order),
                                  direction=None))
