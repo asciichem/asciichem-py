@@ -29,10 +29,11 @@ class SmilesParser:
         self.s = source
         self.pos = 0
         self.atoms: list[Atom] = []
-        self.adjacency: list[dict[int, str]] = []
+        self.adjacency: list[dict[int, tuple[str, bool, str]]] = []
         self.open_rings: dict[str, int] = {}
         self.parent: int | None = None
         self.pending_kind: str | None = None
+        self.pending_shape: str | None = None
 
     def parse(self) -> Formula:
         molecules = [self.component()]
@@ -54,6 +55,7 @@ class SmilesParser:
         self.parent = None
         self.pending_kind = None
         self.pending_direction = None
+        self.pending_shape = None
 
         self.chain()
 
@@ -62,9 +64,12 @@ class SmilesParser:
             raise ParseError(
                 f"unclosed ring bond digit(s): {digits} in {self.s!r}")
 
-        edges = [Edge(a, b, kind, self.edge_directions.get((min(a, b), max(a, b))))
-                 for a, neighbors in enumerate(self.adjacency)
-                 for b, kind in neighbors.items() if b > a]
+        edges = [
+            Edge(a, b, entry[0], self.edge_directions.get((min(a, b), max(a, b))), entry[2])
+            for a, neighbors in enumerate(self.adjacency)
+            for b, entry in neighbors.items()
+            if b > a
+        ]
         return Molecule(nodes=linearize(self.atoms, edges))
 
     def chain(self):
@@ -98,10 +103,15 @@ class SmilesParser:
         saved_direction = self.pending_direction
         self.pending_kind = kind
         self.pending_direction = direction
+        # The branch's FIRST edge is branch-shaped; the tree's inner
+        # chain stays chain-shaped (the linearizer groups only the
+        # branch edge's subtree).
+        self.pending_shape = "branch"
         self.chain()
         self._expect(")")
         self.parent, self.pending_kind = saved_parent, saved_pending
         self.pending_direction = saved_direction
+        self.pending_shape = None
 
     def ringbond(self, kind: str | None, direction: str | None = None):
         if direction:
@@ -115,7 +125,7 @@ class SmilesParser:
                 raise ParseError(
                     f"bonded ring closures ({kind}) are not representable "
                     "in the model's ring-closure form")
-            self._add_edge(opener, self.parent, kind)
+            self._add_edge(opener, self.parent, kind, shape="ring")
         else:
             self.open_rings[digit] = self.parent
 
@@ -125,17 +135,21 @@ class SmilesParser:
         self.atoms.append(atom)
         self.adjacency.append({})
         if self.parent is not None:
-            self._add_edge(self.parent, index, self.pending_kind)
+            self._add_edge(self.parent, index, self.pending_kind,
+                           shape=self.pending_shape or "chain")
             if self.pending_direction:
                 self.edge_directions[tuple(sorted((self.parent, index)))] = self.pending_direction
         self.parent = index
         self.pending_kind = None
         self.pending_direction = None
+        self.pending_shape = None
 
-    def _add_edge(self, a: int, b: int, explicit: str | None, direction: str | None = None):
+    def _add_edge(self, a: int, b: int, explicit: str | None,
+                  direction: str | None = None,
+                  shape: str = "chain"):
         kind = explicit or self._default_kind(a, b)
-        self.adjacency[a][b] = kind
-        self.adjacency[b][a] = kind
+        self.adjacency[a][b] = (kind, False, shape)
+        self.adjacency[b][a] = (kind, False, shape)
 
     def _default_kind(self, a: int, b: int) -> str:
         both = self.atoms[a].aromatic and self.atoms[b].aromatic
