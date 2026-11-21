@@ -357,4 +357,10 @@ def _ideal_point(sides: int, member_index: int, shift: float) -> Point:
 
 def layout_molecule(molecule: Molecule) -> tuple[LayoutGraph, list[Point]]:
     graph = walk_molecule(molecule)
+    # Authored coordinates (the CML x2/y2 round-trip, molfile-carried)
+    # take precedence over every computed layout — the depiction-hint
+    # override: the renderer speaks the molecule's own geometry when it
+    # carries one.
+    if graph.atoms and all(a.x2 is not None and a.y2 is not None for a in graph.atoms):
+        return graph, [Point(a.x2, a.y2) for a in graph.atoms]
     return graph, place_graph(graph)
