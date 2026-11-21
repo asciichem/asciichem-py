@@ -165,6 +165,18 @@ def test_structure_reference_text(case):
     assert render(parse_text(case["input"])) == case["text"], case["id"]
 
 
+# The smiles family's recorded text column (the branch-projection
+# text, asciichem-ruby#208's recording): the smiles-ingested model's
+# canonical text matches the cross-runtime recording byte-for-byte.
+@pytest.mark.parametrize("case", [c for c in fixtures()
+                                  if isinstance(c.get("smiles"), str)
+                                  and isinstance(c.get("text"), str)
+                                  and c.get("parses")],
+                         ids=lambda c: c["id"])
+def test_smiles_recorded_text(case):
+    assert render(parse_smiles(case["smiles"])) == case["text"], case["id"]
+
+
 def molfile_fixtures():
     return [c for c in fixtures() if isinstance(c.get("molfile"), str)]
 
