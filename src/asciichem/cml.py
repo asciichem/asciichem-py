@@ -1024,7 +1024,7 @@ def _splice_group(molecule: Molecule, first: int, last: int,
 
 def _read_reaction(element: _XNode) -> Reaction:
     arrow = element.attr("type") or element.attr("title")
-    if arrow not in ("forward", "reverse", "equilibrium", "resonance"):
+    if arrow not in ("forward", "reverse", "equilibrium", "resonance", "donation", "removal"):
         arrow = "forward"
     reactants: list[Node] = []
     products: list[Node] = []

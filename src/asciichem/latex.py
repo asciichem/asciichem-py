@@ -155,7 +155,7 @@ def _group(g: Group) -> str:
 BRACKET_CHARS = {"paren": ("(", ")"), "square": ("[", "]"),
                  "brace": ("{", "}")}
 
-ARROWS = {"forward": "->", "reverse": "<-", "equilibrium": "<=>",
+ARROWS = {"forward": "->", "reverse": "<-", "equilibrium": "<=>", "donation": "<=>+", "removal": "<=>-",
           "resonance": "<->"}
 
 
