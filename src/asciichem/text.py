@@ -8,7 +8,8 @@ from .model import (Adduct, Atom, Bond, Calculation, Crystal, ElectronConfigurat
                     EmbeddedMath, Formula, Group, Mechanism, Molecule, Node,
                     Reaction, ReactionCascade, Spectrum, Text, ZMatrix,
                     Adduct,
-                    ReactionConditions, STATE_GLYPHS, STEREO_LETTER)
+                    ReactionConditions, STATE_GLYPHS, STEREO_LETTER,
+                    PHASE_SPELLINGS)
 
 _FORMATTERS = {}
 
@@ -43,7 +44,13 @@ def _molecule(m: Molecule) -> str:
     # spec'd text loss, #188).
     kinds = kekule_bond_kinds(m)
     body = _molecule_body(m.nodes, kinds)
-    return stereo + prefix + body + _state_mark(m) + _annotations(m)
+    return stereo + prefix + body + _phase_mark(m) + _state_mark(m) + _annotations(m)
+
+
+def _phase_mark(m: Molecule) -> str:
+    # The authored phase, tight to the units (the grammar's mhchem
+    # form); the round-trip contract renders the spelling.
+    return PHASE_SPELLINGS[m.phase] if m.phase else ""
 
 
 def _state_mark(m: Molecule) -> str:

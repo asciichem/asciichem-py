@@ -234,6 +234,7 @@ class _WireGroup:
 class _MoleculeRecord:
     coefficient: Optional[str]
     state: Optional[str]
+    phase: Optional[str]
     atoms: list
     bonds: list
     groups: list
@@ -361,10 +362,12 @@ def _walk_molecule(ids: _Ids, molecule: Molecule) -> tuple[_MoleculeRecord, bool
     walker = _MoleculeWalker(ids)
     walker.walk_nodes(molecule.nodes, None)
     walker.emit_ring_bonds()
-    extensions = bool(walker.groups) or bool(molecule.state) or any(
+    extensions = bool(walker.groups) or bool(molecule.state) or bool(
+        molecule.phase) or any(
         atom.extensions for atom in walker.atoms)
     record = _MoleculeRecord(coefficient=molecule.coefficient,
                              state=molecule.state,
+                             phase=molecule.phase,
                              atoms=walker.atoms, bonds=walker.bonds,
                              groups=walker.groups)
     return record, extensions
@@ -508,6 +511,8 @@ def _emit_molecule(parent, ids: _Ids, record: _MoleculeRecord) -> None:
     # the other molecule extensions).
     if record.state is not None:
         element.set(f"{ACI_PREFIX}:state", record.state)
+    if record.phase is not None:
+        element.set(f"{ACI_PREFIX}:phase", record.phase)
     if record.atoms:
         array = element.create_child("atomArray")
         for atom in record.atoms:
@@ -806,7 +811,9 @@ def _read_molecule(element: _XNode) -> Molecule:
     # values are ignored (forward compatibility).
     raw_state = element.attr_ns(ACI_NAMESPACE, "state")
     state = raw_state if raw_state in ("precipitate", "gas") else None
-    molecule = Molecule(nodes=[], coefficient=coefficient, state=state)
+    raw_phase = element.attr_ns(ACI_NAMESPACE, "phase")
+    phase = raw_phase if raw_phase in ("aqueous", "liquid", "solid", "gas") else None
+    molecule = Molecule(nodes=[], coefficient=coefficient, state=state, phase=phase)
     _rebuild_atoms_and_bonds(molecule, wire_atoms, wire_bonds)
     _rebuild_groups(molecule, groups)
     return molecule

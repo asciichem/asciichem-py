@@ -39,7 +39,8 @@ from .model import (Adduct, Atom, Bond, Calculation, CalculationProperty, Crysta
                     Identifier, Mechanism, MechanismFlow, MechanismStep,
                     Molecule, Name, ParseError, Reaction, ReactionCascade,
                     ReactionConditions, Spectrum, SpectrumPeak, Text, ZMatrix,
-                    ZRow)
+                    ZRow,
+                    PHASES)
 
 # The artifact entry holding the whole AsciiChem grammar.
 ENTRY = "formula"
@@ -48,7 +49,7 @@ ARTIFACT_PATH = Path(__file__).parent / "parg" / "asciichem.json"
 
 # Version the vendored artifact was built from; the load fails loudly
 # on drift so the engine never runs a stale grammar.
-PARG_GRAMMAR_VERSION = "0.10.0"
+PARG_GRAMMAR_VERSION = "0.11.0"
 
 ARROW_TOKENS = {"<=>+": "donation", "<=>-": "removal", "<=>": "equilibrium", "<->": "resonance", "->": "forward", "<-": "reverse"}
 STEREO = {"alpha": "alpha", "beta": "beta", "R": "R", "S": "S", "E": "E", "Z": "Z",
@@ -390,8 +391,9 @@ def build_molecule(mol: dict) -> Molecule:
     # The molecule-level state mark (grammar v0.7.0): the authored
     # glyph maps to the semantic word the model carries.
     state = STATES[mol["state"]] if "state" in mol else None
+    phase = PHASES[mol["phase"]] if "phase" in mol else None
     units = [build_unit(unit) for unit in mol.get("units") or []]
-    return Molecule(nodes=units, coefficient=coefficient, stereo=stereo, state=state)
+    return Molecule(nodes=units, coefficient=coefficient, stereo=stereo, state=state, phase=phase)
 
 
 def build_group(group: dict) -> Group:

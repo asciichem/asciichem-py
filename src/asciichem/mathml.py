@@ -12,7 +12,8 @@ import re
 from .model import (Adduct,Atom, Bond, Calculation, Crystal, ElectronConfiguration,
                     EmbeddedMath, Formula, Group, Mechanism, Molecule, Node,
                     Reaction, ReactionCascade, Spectrum, Text, ZMatrix,
-                    STEREO_LETTER, AsciiChemError)
+                    STEREO_LETTER, AsciiChemError,
+                    PHASE_SPELLINGS)
 from .engine import parse_text
 
 MATHML_NS = "http://www.w3.org/1998/Math/MathML"
@@ -113,6 +114,9 @@ def _molecule(m: Molecule) -> _El:
     if m.coefficient is not None:
         children.append(_mn(m.coefficient))
     children.extend(render(n) for n in m.nodes)
+    # mhchem typesets the phase as upright text.
+    if m.phase is not None:
+        children.append(_mtext(PHASE_SPELLINGS[m.phase]))
     if m.state is not None:
         children.append(_mo("↓" if m.state == "precipitate" else "↑"))
     return _el("mrow", None, children)
