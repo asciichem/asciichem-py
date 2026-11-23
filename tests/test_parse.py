@@ -110,3 +110,20 @@ def test_every_arrow_kind_reads_back_from_its_ascii():
     for kind, ascii in ARROW_ASCII.items():
         source = f"A {ascii} B"
         assert render(parse_text(source)) == source
+
+
+def test_phase_states_round_trip_verbatim():
+    # mhchem's tight parenthesised phases (grammar v0.11.0); the
+    # phase precedes the state mark and collision-frees by case —
+    # Fe(s) solid iron, Fe(S) a sulfur group (asciichem-ruby#214).
+    from asciichem.model import PHASES
+
+    cases = [("NaCl(aq)", "aqueous"), ("H_2O(l)", "liquid"),
+             ("Fe(s)", "solid"), ("CO_2(g)", "gas"),
+             ("Ca(OH)_2(aq)", "aqueous"), ("AgCl(s) v", "solid")]
+    for source, phase in cases:
+        assert render(parse_text(source)) == source, source
+        assert parse_text(source).nodes[0].phase == phase, source
+    assert parse_text("Fe(S)").nodes[0].phase is None
+    with pytest.raises(ParseError):
+        parse_text("AgCl (aq)")

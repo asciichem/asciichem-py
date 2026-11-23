@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import re
 
-from .model import (Adduct,Atom, Bond, Calculation, Crystal, ElectronConfiguration,
+from .model import (Adduct,Atom, Bond, Calculation, Crystal, ElectronConfiguration, PHASE_SPELLINGS, 
                     EmbeddedMath, Formula, Group, Mechanism, Molecule, Node,
                     Reaction, ReactionCascade, Spectrum, Text, ZMatrix,
                     STEREO_LETTER)
@@ -96,10 +96,11 @@ def _molecule(m: Molecule) -> str:
     stereo = f"({STEREO_LETTER[m.stereo]})-" if m.stereo else ""
     body = "".join(render(n) for n in m.nodes)
     # mhchem's own output form for the phase mark.
+    phase = PHASE_SPELLINGS.get(m.phase, "") if m.phase else ""
     state = {"precipitate": "\\downarrow", "gas": "\\uparrow"}.get(m.state, "")
     if _inside_ce:
-        return f"{stereo}{prefix}{body}{state}"
-    return f"\\ce{{{stereo}{prefix}{body}{state}}}"
+        return f"{stereo}{prefix}{body}{phase}{state}"
+    return f"\\ce{{{stereo}{prefix}{body}{phase}{state}}}"
 
 
 @_formats(Adduct)
@@ -111,10 +112,11 @@ def _adduct(a: Adduct) -> str:
     stereo = f"({STEREO_LETTER[m.stereo]})-" if m.stereo else ""
     body = "".join(render(n) for n in m.nodes)
     # mhchem's own output form for the phase mark.
+    phase = PHASE_SPELLINGS.get(m.phase, "") if m.phase else ""
     state = {"precipitate": "\\downarrow", "gas": "\\uparrow"}.get(m.state, "")
     if _inside_ce:
-        return f"{stereo}{prefix}{body}{state}"
-    return f"\\ce{{{stereo}{prefix}{body}{state}}}"
+        return f"{stereo}{prefix}{body}{phase}{state}"
+    return f"\\ce{{{stereo}{prefix}{body}{phase}{state}}}"
 
 
 @_formats(Atom)

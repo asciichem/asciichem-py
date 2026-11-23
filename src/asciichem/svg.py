@@ -23,7 +23,7 @@ from .model import (Adduct,
     ReactionCascade,
     STEREO_LETTER,
     Text,
-)
+    PHASE_SPELLINGS)
 from .text import render as render_text
 
 FONT_SIZE = 15.0
@@ -330,6 +330,8 @@ def _segments_for(node: Node) -> list[_Segment]:
             segments.append(_seg(node.coefficient, 0.0))
         for child in node.nodes:
             segments.extend(_segments_for(child))
+        if node.phase is not None:
+            segments.append(_seg(PHASE_SPELLINGS[node.phase], 0.0))
         # The unicode phase arrow, the glyph MathML typesets.
         if node.state is not None:
             segments.append(_seg(" ", 0.0))

@@ -19,6 +19,12 @@ BOND_ENTITY = {"single": "-", "double": "=", "triple": "≡", "quadruple": "≣"
                "aromatic": ":"}
 ARROW_ASCII = {"forward": "->", "reverse": "<-", "equilibrium": "<=>", "resonance": "<->", "donation": "<=>+", "removal": "<=>-"}
 ARROW_ENTITY = {"forward": "→", "reverse": "←", "equilibrium": "⇌", "resonance": "↔", "donation": "⇌⁺", "removal": "⇌⁻"}
+
+# The molecule-level phase (grammar v0.11.0): the authored token maps
+# to the semantic word; the renderers map back through PHASE_SPELLINGS
+# so text round-trips to the authored form.
+PHASES = {"aq": "aqueous", "l": "liquid", "s": "solid", "g": "gas"}
+PHASE_SPELLINGS = {"aqueous": "(aq)", "liquid": "(l)", "solid": "(s)", "gas": "(g)"}
 BRACKETS = {"paren": "()", "square": "[]", "brace": "{}"}
 STEREO_LETTER = {"R": "R", "S": "S", "E": "E", "Z": "Z", "alpha": "alpha", "beta": "beta"}
 # The authored glyph for a semantic state: the round-trip contract
@@ -114,6 +120,9 @@ class Molecule:
     # The molecule-level state mark (grammar v0.7.0): "precipitate"
     # (AgCl v, typeset as the down arrow) or "gas" (AgCl ^, up).
     state: Optional[str] = None
+    # The molecule-level phase (grammar v0.11.0): "aqueous" (NaCl(aq)),
+    # "liquid", "solid", "gas" — the tight parenthesised mhchem form.
+    phase: Optional[str] = None
     names: list = field(default_factory=list)
     identifiers: list = field(default_factory=list)
     title: Optional[str] = None
