@@ -10,7 +10,7 @@ env:
   # floating. Bump these lines deliberately with each release (the
   # tag carries what changed).
   CORPUS_REF: v0.21.0
-  MODEL_REF: v0.9.0
+  MODEL_REF: v0.10.0
 
 jobs:
   test:
