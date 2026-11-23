@@ -93,3 +93,20 @@ def test_structure_reference_rejects_other_sources():
 def test_structure_reference_rejects_dot_components():
     with pytest.raises(ParseError, match="one connected structure"):
         parse_text('@smiles("CC.O")')
+
+
+def test_donation_arrows_round_trip_verbatim():
+    # mhchem's <=>+ / <=>-: the equilibrium carrying an electron-pair
+    # donation/removal marker (asciichem-ruby#214). The minus form used
+    # to re-tokenize as an equilibrium arrow plus a separate fragment.
+    for source in ("A <=>+ B", "A <=>- B", "A <=>+[Fe] B"):
+        assert render(parse_text(source)) == source
+
+
+def test_every_arrow_kind_reads_back_from_its_ascii():
+    from asciichem.model import ARROW_ASCII, ARROW_ENTITY
+
+    assert set(ARROW_ASCII) == set(ARROW_ENTITY)
+    for kind, ascii in ARROW_ASCII.items():
+        source = f"A {ascii} B"
+        assert render(parse_text(source)) == source

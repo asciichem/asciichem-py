@@ -17,8 +17,8 @@ BOND_ASCII = {"single": "-", "double": "=", "triple": "#", "quadruple": "##",
 BOND_ENTITY = {"single": "-", "double": "=", "triple": "≡", "quadruple": "≣",
                "wedge": "↑", "hash": "↓", "dative": "→", "wavy": "∼",
                "aromatic": ":"}
-ARROW_ASCII = {"forward": "->", "reverse": "<-", "equilibrium": "<=>", "resonance": "<->"}
-ARROW_ENTITY = {"forward": "→", "reverse": "←", "equilibrium": "⇌", "resonance": "↔"}
+ARROW_ASCII = {"forward": "->", "reverse": "<-", "equilibrium": "<=>", "resonance": "<->", "donation": "<=>+", "removal": "<=>-"}
+ARROW_ENTITY = {"forward": "→", "reverse": "←", "equilibrium": "⇌", "resonance": "↔", "donation": "⇌⁺", "removal": "⇌⁻"}
 BRACKETS = {"paren": "()", "square": "[]", "brace": "{}"}
 STEREO_LETTER = {"R": "R", "S": "S", "E": "E", "Z": "Z", "alpha": "alpha", "beta": "beta"}
 # The authored glyph for a semantic state: the round-trip contract

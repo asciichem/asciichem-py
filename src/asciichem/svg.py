@@ -303,6 +303,8 @@ _ARROW_GLYPH = {
     "forward": "→",
     "reverse": "←",
     "equilibrium": "⇌",
+    "donation": "⇌⁺",
+    "removal": "⇌⁻",
     "resonance": "↔",
 }
 
