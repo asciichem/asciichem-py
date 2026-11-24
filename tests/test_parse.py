@@ -3,6 +3,7 @@ import json
 import pytest
 from asciichem import ParseError, parse_text
 from asciichem.model import Atom
+from asciichem.latex import render_latex
 from asciichem.text import render
 
 
@@ -129,6 +130,13 @@ def test_phase_states_round_trip_verbatim():
     assert parse_text("Fe(S)").nodes[0].phase is None
     with pytest.raises(ParseError):
         parse_text("AgCl (aq)")
+
+
+def test_phase_latex_typesets_as_upright_text():
+    # The deep-audit pass-2 catch: the bare spelling vs mhchem's
+    # \text{} form (the ruby/ts/rs reference emits \text{(aq)}).
+    assert r"\text{(aq)}" in render_latex(parse_text("NaCl(aq)"))
+    assert r"\downarrow" in render_latex(parse_text("AgCl(s) v"))
 
 
 def test_phase_carries_through_the_wire_form():
