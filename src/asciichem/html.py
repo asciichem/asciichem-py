@@ -21,7 +21,8 @@ from __future__ import annotations
 from .model import (Adduct,Atom, Bond, Calculation, Crystal, ElectronConfiguration,
                     EmbeddedMath, Formula, Group, Mechanism, Molecule, Node,
                     Reaction, ReactionCascade, Spectrum, Text, ZMatrix,
-                    STEREO_LETTER)
+                    STEREO_LETTER,
+                    PHASE_SPELLINGS)
 
 _FORMATTERS = {}
 
@@ -66,8 +67,10 @@ def _molecule(m: Molecule) -> str:
     stereo = f"({escape(STEREO_LETTER[m.stereo])})-" if m.stereo else ""
     body = "".join(render(n) for n in m.nodes)
     # The phase arrow as its HTML entity.
+    # The phase spelling, tight to the units.
+    phase = PHASE_SPELLINGS[m.phase] if m.phase else ""
     state = {"precipitate": "&darr;", "gas": "&uarr;"}.get(m.state, "")
-    return f"{stereo}{prefix}{body}{state}"
+    return f"{stereo}{prefix}{body}{phase}{state}"
 
 
 @_formats(Adduct)
