@@ -212,6 +212,22 @@ def test_l2_mathml_golden(case):
     assert render_mathml(parse_text(case["input"])) == case["mathml"], case["id"]
 
 
+def _render_golden_fixtures(field):
+    return [c for c in fixtures() if isinstance(c.get(field), str)]
+
+
+@pytest.mark.parametrize("case", _render_golden_fixtures("html"), ids=lambda c: c["id"])
+def test_l2_html_golden(case):
+    from asciichem.html import render_html
+    assert render_html(parse_text(case["input"])) == case["html"], case["id"]
+
+
+@pytest.mark.parametrize("case", _render_golden_fixtures("latex"), ids=lambda c: c["id"])
+def test_l2_latex_golden(case):
+    from asciichem.latex import render_latex
+    assert render_latex(parse_text(case["input"])) == case["latex"], case["id"]
+
+
 # L3: CML round-trip - parse -> CML wire -> parse -> canonical text
 # equals the input (the three-way contract; the wire carries the
 # aci: extension channels for what plain CML does not cover).

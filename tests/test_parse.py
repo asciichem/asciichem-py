@@ -149,3 +149,15 @@ def test_phase_carries_through_the_wire_form():
     back = asciichem.from_model_json(wire)
     assert back.nodes[0].phase == "aqueous"
     assert render(back) == "NaCl(aq)"
+
+
+def test_phase_carries_through_html_and_svg():
+    # The render-golden wave's catch: the html renderer was the last
+    # py surface missing the phase (the svg carried it; the latex
+    # needed the upright form).
+    from asciichem.html import render_html
+    from asciichem.svg import render_svg
+
+    f = parse_text("NaCl(aq)")
+    assert "(aq)" in render_html(f)
+    assert "(aq)" in render_svg(f)
