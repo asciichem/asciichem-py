@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from asciichem import ParseError, parse_text
 from asciichem.model import Atom
@@ -127,3 +129,15 @@ def test_phase_states_round_trip_verbatim():
     assert parse_text("Fe(S)").nodes[0].phase is None
     with pytest.raises(ParseError):
         parse_text("AgCl (aq)")
+
+
+def test_phase_carries_through_the_wire_form():
+    # The deep-audit catch: the wire layer was the one py surface the
+    # phase port missed (the corpus wire rows had no phase probe).
+    import asciichem
+
+    wire = json.loads(asciichem.to_model_json(parse_text("NaCl(aq)")))
+    assert wire["nodes"][0]["phase"] == "aqueous"
+    back = asciichem.from_model_json(wire)
+    assert back.nodes[0].phase == "aqueous"
+    assert render(back) == "NaCl(aq)"

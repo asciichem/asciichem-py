@@ -40,6 +40,8 @@ def to_wire(node) -> dict:
             wire["stereo"] = node.stereo
         if node.state is not None:
             wire["state"] = node.state
+        if node.phase is not None:
+            wire["phase"] = node.phase
         if node.identifiers:
             wire["identifiers"] = [
                 {"type": "identifier", "value": i.value, "convention": i.convention}
@@ -376,7 +378,8 @@ def _from_node(wire) -> object:
         molecule = Molecule([_from_node(n) for n in wire.get("nodes", [])],
                             coefficient=wire.get("coefficient"),
                             stereo=wire.get("stereo"),
-                            state=wire.get("state"))
+                            state=wire.get("state"),
+                            phase=wire.get("phase"))
         from .model import Identifier
         for i in wire.get("identifiers", []):
             molecule.identifiers.append(Identifier(i["value"], i["convention"]))
