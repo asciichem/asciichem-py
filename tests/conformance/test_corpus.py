@@ -203,7 +203,11 @@ def test_molfile_ingestion(case):
 # L2: MathML golden parity - exact-string comparison against the
 # reference implementation's output (single-contract rule).
 def mathml_fixtures():
-    return [c for c in fixtures() if isinstance(c.get("mathml"), str)]
+    return [
+        c
+        for c in fixtures()
+        if isinstance(c.get("mathml"), str) and not c.get("referenceRender")
+    ]
 
 
 @pytest.mark.parametrize("case", mathml_fixtures(), ids=lambda c: c["id"])
@@ -213,7 +217,15 @@ def test_l2_mathml_golden(case):
 
 
 def _render_golden_fixtures(field):
-    return [c for c in fixtures() if isinstance(c.get(field), str)]
+    # referenceRender rows embed the reference's math-engine output
+    # (Plurimath); this implementation degrades embedded math by
+    # contract (corpus schema: "the skip is the documented
+    # degradation, not a silent drop").
+    return [
+        c
+        for c in fixtures()
+        if isinstance(c.get(field), str) and not c.get("referenceRender")
+    ]
 
 
 @pytest.mark.parametrize("case", _render_golden_fixtures("html"), ids=lambda c: c["id"])

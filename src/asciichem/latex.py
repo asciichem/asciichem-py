@@ -168,7 +168,7 @@ def _bond(b: Bond) -> str:
     if b.kind == "double":
         return "="
     if b.kind == "triple":
-        return "\\\\equiv{}"
+        return "\\equiv{}"
     return b.ascii
 
 

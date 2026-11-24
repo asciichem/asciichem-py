@@ -27,7 +27,7 @@ from asciichem.latex import render as render_latex
      "\\ce{Ca^{(II)}}"),
     ("C#C",
      '<span class="asciichem">C#C</span>',
-     "\\ce{C\\\\equiv{}C}"),
+     "\\ce{C\\equiv{}C}"),
     ("C=C",
      '<span class="asciichem">C=C</span>',
      "\\ce{C=C}"),
