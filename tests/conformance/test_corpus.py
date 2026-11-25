@@ -252,4 +252,7 @@ def test_l3_cml_round_trip(case):
     from asciichem import cml
     xml = cml.to_cml(parse_text(case["input"]))
     restored = cml.parse_cml(xml)
-    assert render(restored) == case["input"], case["id"]
+    # An alias-spelling input lands on the canonical text (the
+    # fixture's `text` field records it; defaults to the input).
+    expected = case.get("text") or case["input"]
+    assert render(restored) == expected, case["id"]
