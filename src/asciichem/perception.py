@@ -43,16 +43,61 @@ def bond_order_sum(atom_index: int, edges: list[Edge]) -> int:
     return total
 
 
-def hydrogen_valence_sum(atom_index: int, edges: list[Edge]) -> float:
+def hydrogen_valence_sum(atom_index: int, edges: list[Edge],
+                         ring: list[int] | None = None,
+                         atoms: list[Atom] | None = None) -> float:
     """Hydrogen-counting sum: aromatic bonds order as 1.5 (Hueckel),
-    so both spellings of benzene sum to 3.0 at every carbon."""
+    so both spellings of benzene sum to 3.0 at every carbon.
+
+    When a detected aromatic five-membered ring is supplied, its
+    lone-pair donation donor counts its ring bonds as the kekulized
+    singles the donation model implies (pyrrole N: two singles + one
+    H = valence 3 -> one implicit hydrogen; furan O: two singles =
+    valence 2 -> none) -- the blanket 1.5 sum over-values a donor
+    (3.0 against valence 2 or 3) and would decline exactly the
+    heteroatoms the donation rule exists to answer."""
+    donor = (ring is not None and atoms is not None
+             and _donation_donor(atoms[atom_index], atoms, atom_index, edges, ring))
     total = 0.0
     for edge in edges:
         if edge.from_ != atom_index and edge.to != atom_index:
             continue
-        total += (AROMATIC_H_ORDER if edge.kind == "aromatic"
-                  else BOND_ORDER.get(edge.kind, 1))
+        if edge.kind == "aromatic":
+            total += 1.0 if donor else AROMATIC_H_ORDER
+        else:
+            total += BOND_ORDER.get(edge.kind, 1)
     return total
+
+
+def _donation_donor(atom: Atom, atoms: list[Atom], atom_index: int,
+                    edges: list[Edge], ring: list[int]) -> bool:
+    """The donation donor of an aromatic five-membered ring: a
+    lone-pair-donating element with no in-system double bond of its
+    own (its 2pi come from the lone pair), uncharged, with no stated
+    hydrogens (a stated count is the source's word -- never
+    re-derived), and **unique among nitrogens** -- the donation is
+    one lone pair per ring, so a plain `n` beside another donor
+    element (imidazole's `n` beside an `[nH]`, oxazole's `n` beside
+    the `o`) is pyridine-type: it keeps the blanket Hueckel sum and
+    answers zero. O and S are the preferred donors and do not defer
+    (oxazole's `o` stays the donor beside its `n`)."""
+    if len(ring) != 5:
+        return False
+    if atom_index not in ring:
+        return False
+    if atom.charge is not None or atom.hydrogens is not None:
+        return False
+    if atom.element not in LONE_PAIR_DONORS:
+        return False
+    if _in_system_double(atom_index, edges, set(ring)):
+        return False
+    if atom.element == "N":
+        for other_index in ring:
+            if other_index == atom_index:
+                continue
+            if atoms[other_index].element in LONE_PAIR_DONORS:
+                return False
+    return True
 
 
 def valence_deficits(element: str, valence_sum: float) -> list[float]:

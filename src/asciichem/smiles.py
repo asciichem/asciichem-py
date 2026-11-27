@@ -359,7 +359,7 @@ def _write_molecule(molecule: Molecule) -> str:
             # bond orders do not map onto heteroatom valences.
             if atoms[atom].aromatic is not True:
                 perceived_hydrogens[atom] = implicit_hydrogens(
-                    atoms[atom], hydrogen_valence_sum(atom, edges))
+                    atoms[atom], hydrogen_valence_sum(atom, edges, ring, atoms))
         for i, atom in enumerate(ring):
             other = ring[(i + 1) % len(ring)]
             perceived_ring_edges.add((min(atom, other), max(atom, other)))
