@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from asciichem import ParseError, parse_text
+from asciichem.svg import render_structural_svg
 from asciichem.text import render
 from asciichem.wire import to_wire
 
@@ -256,3 +257,15 @@ def test_l3_cml_round_trip(case):
     # fixture's `text` field records it; defaults to the input).
     expected = case.get("text") or case["input"]
     assert render(restored) == expected, case["id"]
+
+
+# The depiction family's golden bytes (asciichem-rs#82): every row's
+# structural SVG re-renders byte-exactly — the enantiomer-pair rows are
+# the wedge-synthesis visual acceptance.
+def depiction_fixtures():
+    return [c for c in fixtures() if isinstance(c.get("svg"), str)]
+
+
+@pytest.mark.parametrize("case", depiction_fixtures(), ids=lambda c: c["id"])
+def test_depiction_golden_renders(case):
+    assert render_structural_svg(parse_text(case["input"])) == case["svg"]

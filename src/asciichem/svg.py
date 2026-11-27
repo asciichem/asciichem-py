@@ -91,6 +91,110 @@ def render_svg(node) -> str:
 # -- structural ----------------------------------------------------------
 
 
+@dataclass
+class _SynthesizedWedge:
+    center: int
+    neighbor: int
+    hash: bool
+
+
+def _synthesize_stereo_wedges(graph, positions: list[Point]) -> dict[int, _SynthesizedWedge]:
+    """Tetrahedral wedge synthesis: a chirality-carrying atom (the
+    SMILES @/@@ parity, TH1/TH2 in the model) with no authored
+    wedge/hash of its own draws one synthesized wedge/hash so
+    enantiomers render as distinguishable drawings. The model's parity
+    is defined against the reference ligand order — the stated
+    hydrogens first, then the neighbours in bond order (the SMILES
+    writer's chirality order) — and the synthesized wedge realizes
+    that hand against the laid-out neighbour geometry. Synthesis
+    declines (the drawing renders exactly as without it) rather than
+    guesses: non-tetrahedral ligand sets, no claimable plain single
+    bond, degenerate (zero-volume) drawn geometries."""
+    claimed: dict[int, _SynthesizedWedge] = {}
+    used: set[int] = set()
+
+    for index, atom in enumerate(graph.atoms):
+        parity = atom.chirality
+        if parity not in ("TH1", "TH2"):
+            continue
+        stated_h = bool(atom.hydrogens and atom.hydrogens > 0)
+
+        neighbors: list[int] = []
+        for bond in graph.bonds:
+            if bond.from_idx == index:
+                neighbors.append(bond.to_idx)
+            elif bond.to_idx == index:
+                neighbors.append(bond.from_idx)
+        if len(set(neighbors)) != len(neighbors):
+            continue
+        if len(neighbors) + (1 if stated_h else 0) != 4:
+            continue
+
+        bond_index = None
+        neighbor = None
+        for i, bond in enumerate(graph.bonds):
+            if i in used or bond.bond.kind != "single":
+                continue
+            if bond.from_idx != index and bond.to_idx != index:
+                continue
+            bond_index = i
+            neighbor = bond.to_idx if bond.from_idx == index else bond.from_idx
+            break
+        if bond_index is None:
+            continue
+        wedge_slot = neighbors.index(neighbor)
+
+        center = positions[index]
+        # Tetrahedral completion: the stated H sits opposite the drawn
+        # neighbours' centroid.
+        hx = -sum(positions[n].x - center.x for n in neighbors)
+        hy = -sum(positions[n].y - center.y for n in neighbors)
+
+        # Ligand points in reference order under a plain wedge (the
+        # wedged ligand at +z toward the viewer, the stated H
+        # opposite); a hash flips both out-of-plane signs, which
+        # inverts the orientation exactly once.
+        points: list[tuple[float, float, float]] = []
+        if stated_h:
+            points.append((hx, hy, -1.0))
+        for i, n in enumerate(neighbors):
+            z = 1.0 if i == wedge_slot else 0.0
+            points.append((positions[n].x - center.x, positions[n].y - center.y, z))
+        orientation = _orientation(points)
+        if orientation == 0:
+            continue
+        sign = 1.0 if orientation > 0 else -1.0
+
+        # The fitted polarity (asciichem-rs's tests/stereo_depiction.rs
+        # oracle gate): the stated-H construction (two out-of-plane
+        # ligands) and the four-drawn-ligand construction (one apex)
+        # are different point sets, so TH1's orientation target differs
+        # per construction — each fitted against the engine, TH2
+        # negated.
+        target = 1.0 if (parity == "TH1") == stated_h else -1.0
+        used.add(bond_index)
+        claimed[bond_index] = _SynthesizedWedge(
+            center=index, neighbor=neighbor, hash=sign != target
+        )
+
+    return claimed
+
+
+def _orientation(points: list[tuple[float, float, float]]) -> float:
+    """The orientation sign of a tetrahedral ligand set: the scalar
+    triple product of the first three ligand vectors against the
+    fourth."""
+    a, b, c, d = points
+    u = (b[0] - a[0], b[1] - a[1], b[2] - a[2])
+    v = (c[0] - a[0], c[1] - a[1], c[2] - a[2])
+    w = (d[0] - a[0], d[1] - a[1], d[2] - a[2])
+    return (
+        (u[1] * v[2] - u[2] * v[1]) * w[0]
+        + (u[2] * v[0] - u[0] * v[2]) * w[1]
+        + (u[0] * v[1] - u[1] * v[0]) * w[2]
+    )
+
+
 def _render_molecule(molecule: Molecule) -> str:
     has_bond = any(isinstance(n, Bond) for n in molecule.nodes)
     if not has_bond:
@@ -98,15 +202,24 @@ def _render_molecule(molecule: Molecule) -> str:
         # isomerism point) — render typographically.
         return render_svg(molecule)
     graph, positions = layout_molecule(molecule)
+    wedges = _synthesize_stereo_wedges(graph, positions)
     elements: list[str] = []
     drawn: set[tuple[int, int]] = set()
 
-    for bond in graph.bonds:
+    for bond_index, bond in enumerate(graph.bonds):
         key = (bond.from_idx, bond.to_idx) if bond.from_idx < bond.to_idx else (bond.to_idx, bond.from_idx)
         if key in drawn:
             continue
         drawn.add(key)
-        elements.append(_bond_element(positions[bond.from_idx], positions[bond.to_idx], bond.bond))
+        wedge = wedges.get(bond_index)
+        if wedge is not None:
+            # The synthesized glyph points centre → neighbour: narrow
+            # at the stereocentre, widening (or hatching) toward the
+            # ligand.
+            glyph = Bond("hash" if wedge.hash else "wedge")
+            elements.append(_bond_element(positions[wedge.center], positions[wedge.neighbor], glyph))
+        else:
+            elements.append(_bond_element(positions[bond.from_idx], positions[bond.to_idx], bond.bond))
 
     for atom, pos in zip(graph.atoms, positions):
         elements.append(_atom_element(atom, pos))
