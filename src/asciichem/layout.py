@@ -78,40 +78,42 @@ def unclosed_ring_atoms(atoms: list[Atom]) -> list[int]:
 def walk_molecule(molecule: Molecule) -> LayoutGraph:
     """Walks a molecule into a neutral atom+bond graph. Bond tokens
     connect the last atom of the previous unit to the first atom of
-    the next; nested groups contribute their walk order."""
+    the next; nested groups contribute their walk order. A group whose
+    first node (unwrapping nested molecules) is a bond is a BRANCH
+    group: the leading bond attaches the branch to the atom before the
+    group, and the continuation resumes from that root — `C(-O)=O`
+    reads C-O and C=O, never O=O."""
     graph = LayoutGraph()
+    previous: int | None = None
+    pending_bond: Bond | None = None
 
-    def walk(node: Node) -> tuple[int, int] | None:
-        if isinstance(node, Atom):
-            graph.atoms.append(node)
-            last = len(graph.atoms) - 1
-            return last, last
-        if isinstance(node, Group):
-            first = None
-            last = None
-            for child in node.nodes:
-                span = walk(child)
-                if span is not None:
-                    if first is None:
-                        first = span[0]
-                    last = span[1]
-            if first is None or last is None:
-                return None
-            return first, last
-        return None
+    def walk_nodes(nodes: list[Node]) -> None:
+        nonlocal previous, pending_bond
+        for unit in nodes:
+            if isinstance(unit, Bond):
+                pending_bond = unit
+                continue
+            if isinstance(unit, Atom):
+                graph.atoms.append(unit)
+                index = len(graph.atoms) - 1
+                if previous is not None and pending_bond is not None:
+                    graph.bonds.append(LayoutBond(previous, index, pending_bond))
+                previous = index
+                pending_bond = None
+                continue
+            if isinstance(unit, (Group, Molecule)):
+                branch_root: int | None = None
+                if isinstance(unit, Group) and previous is not None and unit.nodes:
+                    first: Node | None = unit.nodes[0]
+                    while isinstance(first, Molecule) and first.nodes:
+                        first = first.nodes[0]
+                    if isinstance(first, Bond):
+                        branch_root = previous
+                walk_nodes(unit.nodes)
+                if branch_root is not None:
+                    previous = branch_root
 
-    previous = None
-    pending_bond = None
-    for unit in molecule.nodes:
-        if isinstance(unit, Bond):
-            pending_bond = unit
-            continue
-        span = walk(unit)
-        if span is not None:
-            if previous is not None and pending_bond is not None:
-                graph.bonds.append(LayoutBond(previous, span[0], pending_bond))
-            previous = span[1]
-            pending_bond = None
+    walk_nodes(molecule.nodes)
 
     graph.ring_bonds = ring_bonds(graph.atoms)
     for ring in graph.ring_bonds:

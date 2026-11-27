@@ -54,3 +54,30 @@ def test_structural_molecules_close_all_ring_bonds():
 def test_invalid_input_raises_parse_error():
     with pytest.raises(ParseError):
         render_structural_svg(parse_text("Na+"))
+
+
+def test_enantiomer_pair_renders_distinguishable_drawings():
+    # The enantiomer-pair test (asciichem-rs#82): the @ parity draws
+    # its ligand away (hash), the @@ parity toward (wedge) — opposite
+    # out-of-plane directions, never two identical flat drawings.
+    left = render_structural_svg(parse_text('@smiles("C[C@H](O)N")'))
+    right = render_structural_svg(parse_text('@smiles("C[C@@H](O)N")'))
+    assert left != right
+    assert "<polygon" not in left
+    assert 'stroke-width="1.2"' in left  # hash hatches
+    assert "<polygon" in right  # wedge
+    assert 'stroke-width="1.2"' not in right
+
+
+def test_synthesis_declines_non_tetrahedral_ligand_sets():
+    # C[C@H](O): two drawn neighbours + the stated hydrogen — three
+    # ligands, no drawable tetrahedron, no invented glyph.
+    out = render_structural_svg(parse_text('@smiles("C[C@H](O)")'))
+    assert "<polygon" not in out
+    assert 'stroke-width="1.2"' not in out
+
+
+def test_molecules_without_parity_render_as_before():
+    out = render_structural_svg(parse_text("C-C(-O)-N"))
+    assert "<polygon" not in out
+    assert 'stroke-width="1.2"' not in out
