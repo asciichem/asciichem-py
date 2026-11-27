@@ -39,9 +39,14 @@ def perceived(smiles: str):
     molecule = parse_smiles(smiles).nodes[0]
     assert isinstance(molecule, Molecule)
     atoms, edges = build_graph(molecule)
-    hydrogens = [implicit_hydrogens(atom, hydrogen_valence_sum(i, edges))
-                 for i, atom in enumerate(atoms)]
-    rings = sorted((sorted(ring) for ring in aromatic_rings(atoms, edges)))
+    rings_raw = aromatic_rings(atoms, edges)
+    hydrogens = [implicit_hydrogens(
+        atom,
+        hydrogen_valence_sum(
+            i, edges,
+            next((r for r in rings_raw if i in r), None), atoms),
+    ) for i, atom in enumerate(atoms)]
+    rings = sorted((sorted(ring) for ring in rings_raw))
     return hydrogens, rings
 
 
