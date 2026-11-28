@@ -269,3 +269,17 @@ def depiction_fixtures():
 @pytest.mark.parametrize("case", depiction_fixtures(), ids=lambda c: c["id"])
 def test_depiction_golden_renders(case):
     assert render_structural_svg(parse_text(case["input"])) == case["svg"]
+
+
+# The molfile-write family's golden bytes (the cross-runtime writer
+# contract): every row's laid molfile re-emits byte-exactly — the
+# enantiomer pairs are the identity-facing acceptance (the drawn hand
+# pairs with the wedge code).
+def molfile_write_fixtures():
+    return [c for c in fixtures() if isinstance(c.get("writtenMolfile"), str)]
+
+
+@pytest.mark.parametrize("case", molfile_write_fixtures(), ids=lambda c: c["id"])
+def test_molfile_write_golden(case):
+    molecule = parse_smiles(case["smiles"]).nodes[0]
+    assert write_molfile(molecule, "") == case["writtenMolfile"]
