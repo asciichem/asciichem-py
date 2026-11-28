@@ -8,6 +8,7 @@ import math
 
 from .model import Atom, Bond, Molecule, ParseError
 from .structure import Edge, build_graph, linearize
+from .svg import _synthesize_stereo_wedges, _synthesize_stereo_wedges_mirrored
 
 _BOND_KINDS = {1: "single", 2: "double", 3: "triple", 4: "aromatic"}
 _BOND_TYPES = {"single": 1, "double": 2, "triple": 3, "aromatic": 4,
@@ -173,37 +174,83 @@ def write_molfile(molecule: Molecule, name: str = "") -> str:
             (1.0 if u_index > a_index else -1.0)
         coords[u_index] = (px + nx * length * side, py + ny * length * side)
 
-    wedges = {}
-    for index, atom in enumerate(atoms):
-        if atom.chirality not in ("TH1", "TH2"):
-            continue
-        # The chiral atom's heavy ligands sit in a trigonal triangle
-        # around it (clockwise-ordered list, the chemomer synthesis's
-        # corpus-fitted shape), and the wedge code pairs with that
-        # handedness: TH1 falls (6), TH2 rises (1). The base layout's
-        # zigzag can collide ligand positions, and a degenerate
-        # drawing reads no parity at all, so the stereocentre's
-        # neighbourhood is synthesized deterministically.
-        ligand_bonds = [(i, e) for i, e in enumerate(edges)
-                        if e.from_ == index or e.to == index]
-        ligands = [e.to if e.from_ == index else e.from_
-                   for _, e in ligand_bonds]
-        cx, cy = coords[index]
-        for slot, ligand in enumerate(ligands[:3]):
-            angle = math.radians(90 + 120 * slot)
-            coords[ligand] = (cx + 28 * math.cos(angle),
-                              cy + 28 * math.sin(angle))
-        bond_index = ligand_bonds[0][0]
-        edge = edges[bond_index]
-        other = edge.to if edge.from_ == index else edge.from_
-        wedges[bond_index] = (index, other, 6 if atom.chirality == "TH1" else 1)
+    # The drawing convention decides the wedge claim (asciichem-rs#86):
+    # a pure-laid drawing is computed in SVG orientation (y falls) and
+    # EMITTED in the molfile's y-rising convention — emitting the
+    # layout's y verbatim would describe the mirror drawing, and the
+    # engine would read the opposite enantiomer of whatever the wedge
+    # claims. Its claim runs the geometry-aware core the structural SVG
+    # renderer uses. An all-authored drawing keeps its coordinates
+    # verbatim and claims through the mirrored variant, which keeps
+    # write∘parse∘write a byte fixed point for chiral molecules. A
+    # mixed drawing keeps the zero-coordinate template (TH1 rises, TH2
+    # falls): no coherent geometry exists to reason against.
+    layout_aligned = len(positions) == base_atoms
+    pure_laid = layout_aligned and all(
+        a.x2 is None and a.y2 is None for a in model_atoms
+    )
+    all_authored = layout_aligned and all(
+        a.x2 is not None and a.y2 is not None for a in model_atoms
+    )
 
+    wedges: dict[int, tuple[int, int, int]] = {}
+    if pure_laid or all_authored:
+        from .layout import LayoutBond, LayoutGraph, Point
+
+        graph_view = LayoutGraph(
+            atoms=model_atoms,
+            bonds=[
+                LayoutBond(e.from_, e.to, Bond(e.kind)) for e in model_edges
+            ],
+        )
+        points = [Point(x, y) for x, y in coords[:base_atoms]]
+        claims = (
+            _synthesize_stereo_wedges(graph_view, points)
+            if pure_laid
+            else _synthesize_stereo_wedges_mirrored(graph_view, points)
+        )
+        for bond_index, claim in claims.items():
+            wedges[bond_index] = (
+                claim.center,
+                claim.neighbor,
+                6 if claim.hash else 1,
+            )
+    else:
+        for index, atom in enumerate(atoms):
+            if atom.chirality not in ("TH1", "TH2"):
+                continue
+            first = next(
+                (i for i, e in enumerate(edges)
+                 if e.from_ == index or e.to == index),
+                None,
+            )
+            if first is None:
+                continue
+            edge = edges[first]
+            wedges[first] = (
+                index,
+                edge.to if edge.from_ == index else edge.from_,
+                1 if atom.chirality == "TH1" else 6,
+            )
+
+    chirality_parity = {"TH1": 1, "TH2": 2}
     for index, atom in enumerate(atoms):
         x, y = coords[index]
+        # Pure-laid drawings speak SVG orientation; the molfile drawing
+        # convention is y rising (the flip is pure-laid only, and -0
+        # normalizes to 0).
+        flipped = -y if pure_laid else y
+        y = 0.0 if flipped == 0 else flipped
         z = atom.z2 or 0.0
+        # The parity field rides every atom line (0 when achiral) and
+        # the H-count column carries the stated hydrogens (+1 code) —
+        # the oracle ignores both for 2D input, the wedge carries the
+        # layer.
+        parity = chirality_parity.get(atom.chirality or "", 0)
+        hcount = (atom.hydrogens if atom.hydrogens is not None else -1) + 1
         lines.append(f"{x:10.4f}{y:10.4f}"
                      f"{z:10.4f} {atom.element:<3}"
-                     " 0  0  0  0  0  0  0  0  0  0  0  0")
+                     f" 0  0{parity:3d}{hcount:3d}  0  0  0  0  0  0  0  0")
 
     for bond_index, edge in enumerate(edges):
         bond_type = _BOND_TYPES.get(edge.kind)

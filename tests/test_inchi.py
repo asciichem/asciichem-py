@@ -1,8 +1,13 @@
+import json
+import os
+from pathlib import Path
+
 import pytest
 
 from asciichem.inchi import (EngineMissingError, Identity, RdkitEngine,
                              get_engine, identity_for, set_engine)
 from asciichem import parse_text
+from asciichem.smiles import parse_smiles
 
 
 @pytest.fixture
@@ -46,3 +51,30 @@ def test_rdkit_engine_missing_extra_message(ethanol):
         pass
     with pytest.raises(EngineMissingError, match="rdkit is not installed"):
         RdkitEngine().identity(ethanol)
+
+
+def test_rdkit_identity_reads_the_recorded_stereo_identities():
+    # The identity pipe's stereo gate: the molfile pipe (the converged
+    # geometry-aware writer) through RDKit must derive the recorded
+    # oracle identities for the stereo rows — the same catch the rs
+    # battery runs through chemomer (the RDKit dialect strips the
+    # parity/H-count columns, both oracle-ignored for 2D input; the
+    # wedge carries the layer).
+    pytest.importorskip("rdkit")
+    corpus_dir = os.environ.get(
+        "ASCIICHEM_CORPUS",
+        str(Path(__file__).resolve().parents[2] / "asciichem-tests"),
+    )
+    fixtures = sorted((Path(corpus_dir) / "corpus" / "fixtures").glob("*.json"))
+    if not fixtures:
+        pytest.skip("the corpus checkout gates in CI")
+    recorded = {}
+    for path in fixtures:
+        for case in json.loads(path.read_text()):
+            if case.get("inchi") and isinstance(case.get("smiles"), str) and "@" in case["smiles"]:
+                recorded[case["smiles"]] = case["inchi"]
+    assert len(recorded) >= 2, "the corpus stereo identity rows shrank"
+    engine = RdkitEngine()
+    for smiles, expected in recorded.items():
+        molecule = parse_smiles(smiles).nodes[0]
+        assert engine.identity(molecule).inchi == expected, smiles
