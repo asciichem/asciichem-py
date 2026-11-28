@@ -110,6 +110,23 @@ def _synthesize_stereo_wedges(graph, positions: list[Point]) -> dict[int, _Synth
     declines (the drawing renders exactly as without it) rather than
     guesses: non-tetrahedral ligand sets, no claimable plain single
     bond, degenerate (zero-volume) drawn geometries."""
+    return _synthesize_stereo_wedges_in(graph, positions, invert=False)
+
+
+def _synthesize_stereo_wedges_mirrored(graph, positions: list[Point]) -> dict[int, _SynthesizedWedge]:
+    """The mirrored-convention variant: the point set speaks the molfile
+    drawing convention (y rising) instead of the SVG's (y falling).
+    Mirroring the point set flips every orientation sign the core
+    reasons about, so the fitted targets invert with it — the glyphs
+    describe the same hands the unmirrored call would on the vertically
+    mirrored point set, which is what makes write∘parse∘write a byte
+    fixed point for chiral molecules (asciichem-rs#86)."""
+    return _synthesize_stereo_wedges_in(graph, positions, invert=True)
+
+
+def _synthesize_stereo_wedges_in(
+    graph, positions: list[Point], invert: bool
+) -> dict[int, _SynthesizedWedge]:
     claimed: dict[int, _SynthesizedWedge] = {}
     used: set[int] = set()
 
@@ -170,8 +187,11 @@ def _synthesize_stereo_wedges(graph, positions: list[Point]) -> dict[int, _Synth
         # ligands) and the four-drawn-ligand construction (one apex)
         # are different point sets, so TH1's orientation target differs
         # per construction — each fitted against the engine, TH2
-        # negated.
-        target = 1.0 if (parity == "TH1") == stated_h else -1.0
+        # negated. The mirrored convention (a molfile drawing speaks
+        # y-rising) inverts every target: mirroring the point set flips
+        # each orientation sign the core reasons about.
+        th1_stated, th1_drawn = (-1.0, 1.0) if invert else (1.0, -1.0)
+        target = th1_stated if (parity == "TH1") == stated_h else th1_drawn
         used.add(bond_index)
         claimed[bond_index] = _SynthesizedWedge(
             center=index, neighbor=neighbor, hash=sign != target

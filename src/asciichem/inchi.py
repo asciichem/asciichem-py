@@ -70,9 +70,27 @@ class RdkitEngine:
         from .molfile import write_molfile
 
         molblock = write_molfile(molecule)
-        mol = Chem.MolFromMolBlock(molblock, sanitize=True, removeHs=False)
+        mol = Chem.MolFromMolBlock(self._rdkit_dialect(molblock), sanitize=True, removeHs=False)
         if mol is None:
             raise AsciiChemError("rdkit could not parse the molfile for this molecule")
         inchi = Chem.MolToInchi(mol)
         inchikey = Chem.MolToInchiKey(mol)
         return Identity(inchi=inchi, inchikey=inchikey or None)
+
+    @staticmethod
+    def _rdkit_dialect(molblock: str) -> str:
+        """Zero the atom-line parity and H-count columns. RDKit's
+        molblock reader mishandles a non-zero H-count (the atom loses
+        the implicit hydrogens its valence owes, and tetrahedral
+        stereo with it); both columns are oracle-ignored for 2D input
+        — the wedge code carries the layer — and stated hydrogens ride
+        the valence derivation or the explicit carrier atoms, so the
+        columns are the writer's dialect, not the engine's."""
+        out = []
+        for line in molblock.split("\n"):
+            if len(line) >= 45 and line[31:34].strip() in (
+                "H", "B", "C", "N", "O", "F", "P", "S", "Cl", "Br", "I",
+            ):
+                line = line[:39] + "  0  0" + line[45:]
+            out.append(line)
+        return "\n".join(out)
